@@ -1,0 +1,146 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hello World!</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
+    <link rel="stylesheet" href="index.css">
+    <script defer src="render.js"></script>
+  </head>
+  <body>
+    <!-- Hero header -->
+    <section class="hero is-primary">
+      <div class="hero-body">
+        <p class="title">QrVentoryApp</p>
+        <p class="subtitle">Excel tools + QR inventory demo</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="card">
+          <header class="card-header">
+            <p class="card-header-title">File Operations</p>
+          </header>
+          <div class="card-content">
+            <div class="content">
+              <div class="field is-grouped is-grouped-multiline">
+                <div class="control"><button id="btnCreate" class="button is-primary">Create Excel</button></div>
+                <div class="control"><button id="btnAddRow" class="button is-link">Add Row</button></div>
+                <div class="control"><button id="btnView" class="button is-info">View</button></div>
+                <div class="control"><button id="btnSelect" class="button is-light">Select File</button></div>
+              </div>
+
+              <article class="message is-warning" id="pathMessage" style="display:none;">
+                <div class="message-header">
+                  <p>Selected file</p>
+                </div>
+                <div class="message-body">
+                  <code id="filePath">No file selected</code>
+                </div>
+              </article>
+
+              <article class="message is-info" id="statusMessage" style="display:none;">
+                <div class="message-header">
+                  <p>Status</p>
+                </div>
+                <div class="message-body" id="statusText">Ready</div>
+              </article>
+
+              <div class="table-container" id="previewContainer" style="display:none;">
+                <table class="table is-fullwidth is-striped is-hoverable" id="rowsTable">
+                  <thead>
+                    <tr id="rowsHead"></tr>
+                  </thead>
+                  <tbody id="rowsBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Existing scripts -->
+    <!-- index.html buttons logic -->
+    <script>
+      const fileState = { path: null };
+
+      function showStatus(text, kind = 'is-info') {
+        const box = document.getElementById('statusMessage');
+        const body = document.getElementById('statusText');
+        box.className = `message ${kind}`;
+        body.textContent = text;
+        box.style.display = '';
+      }
+
+      function setPath(path) {
+        fileState.path = path;
+        const msg = document.getElementById('pathMessage');
+        const code = document.getElementById('filePath');
+        code.textContent = path || 'No file selected';
+        msg.style.display = path ? '' : 'none';
+      }
+
+      function renderRows(rows) {
+        const head = document.getElementById('rowsHead');
+        const body = document.getElementById('rowsBody');
+        head.innerHTML = '';
+        body.innerHTML = '';
+        if (!rows || !rows.length) {
+          document.getElementById('previewContainer').style.display = 'none';
+          return;
+        }
+        // Build header from first row length
+        const cols = Math.max(...rows.map(r => r.length));
+        for (let c = 0; c < cols; c++) {
+          const th = document.createElement('th');
+          th.textContent = `Col ${c+1}`;
+          head.appendChild(th);
+        }
+        // Body
+        rows.forEach(r => {
+          const tr = document.createElement('tr');
+          for (let c = 0; c < cols; c++) {
+            const td = document.createElement('td');
+            td.textContent = r[c] ?? '';
+            tr.appendChild(td);
+          }
+          body.appendChild(tr);
+        });
+        document.getElementById('previewContainer').style.display = '';
+      }
+
+      document.getElementById('btnCreate').addEventListener('click', async () => {
+        const savePath = await window.excel.pickSavePath();
+        if (!savePath) return;
+        setPath(savePath);
+        await window.excel.create(savePath, ['ID', 'Name', 'Qty']);
+        showStatus('Excel created at: ' + savePath, 'is-success');
+      });
+
+      document.getElementById('btnAddRow').addEventListener('click', async () => {
+        if (!fileState.path) return showStatus('Create or select a file first.', 'is-danger');
+        await window.excel.addRow(fileState.path, [1, 'Cable', 12]);
+        showStatus('Row added.', 'is-success');
+      });
+
+      document.getElementById('btnView').addEventListener('click', async () => {
+        if (!fileState.path) return showStatus('Create or select a file first.', 'is-danger');
+        const rows = await window.excel.view(fileState.path);
+        renderRows(rows);
+        showStatus('Loaded ' + rows.length + ' rows.', 'is-info');
+        console.table(rows);
+      });
+
+      document.getElementById('btnSelect').addEventListener('click', async () => {
+        const { canceled, filePaths } = await window.excel.pickOpenPath();
+        if (canceled || !filePaths.length) return;
+        setPath(filePaths[0]);
+        showStatus('File selected.', 'is-warning');
+      });
+    </script>
+    <script type="module" src="/src/renderer.js"></script>
+  </body>
+</html>
