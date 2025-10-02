@@ -31,6 +31,7 @@
     "vite": "^5.4.20"
   },
   "dependencies": {
+    "electron-forge": "^5.2.4",
     "electron-squirrel-startup": "^1.0.1",
     "exceljs": "^4.4.0"
   }
