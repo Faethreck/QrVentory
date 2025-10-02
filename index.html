@@ -48,6 +48,123 @@
                 <div class="message-body" id="statusText">Ready</div>
               </article>
 
+              <!-- Nuevo Ítem form -->
+              <div class="box">
+                <h3 class="title is-5">Nuevo Ítem</h3>
+
+                <div class="columns is-multiline">
+                  <div class="column is-4">
+                    <div class="field">
+                      <label class="label">Nombre</label>
+                      <div class="control"><input id="f-Nombre" class="input" type="text" placeholder="Ej: Notebook Lenovo"></div>
+                    </div>
+                  </div>
+
+                  <div class="column is-4">
+                    <div class="field">
+                      <label class="label">NoSerie</label>
+                      <div class="control"><input id="f-NoSerie" class="input" type="text" placeholder="Ej: SN-12345"></div>
+                    </div>
+                  </div>
+
+                  <div class="column is-4">
+                    <div class="field">
+                      <label class="label">Categoria</label>
+                      <div class="control"><input id="f-Categoria" class="input" type="text" placeholder="Ej: Computadores"></div>
+                    </div>
+                  </div>
+
+                  <div class="column is-3">
+                    <div class="field">
+                      <label class="label">Cantidad</label>
+                      <div class="control"><input id="f-Cantidad" class="input" type="number" min="0" step="1" placeholder="Ej: 1"></div>
+                    </div>
+                  </div>
+
+                  <div class="column is-3">
+                    <div class="field">
+                      <label class="label">Fecha Ingreso</label>
+                      <div class="control"><input id="f-Fecha Ingreso" class="input" type="date"></div>
+                    </div>
+                  </div>
+
+                  <div class="column is-3">
+                    <div class="field">
+                      <label class="label">Proveedor</label>
+                      <div class="control"><input id="f-Proveedor" class="input" type="text" placeholder="Ej: Proveedor S.A."></div>
+                    </div>
+                  </div>
+
+                  <div class="column is-3">
+                    <div class="field">
+                      <label class="label">Rut</label>
+                      <div class="control"><input id="f-Rut" class="input" type="text" placeholder="Ej: 76.543.210-9"></div>
+                    </div>
+                  </div>
+
+                  <div class="column is-4">
+                    <div class="field">
+                      <label class="label">NoFactura</label>
+                      <div class="control"><input id="f-NoFactura" class="input" type="text" placeholder="Ej: 123456"></div>
+                    </div>
+                  </div>
+
+                  <div class="column is-4">
+                    <div class="field">
+                      <label class="label">Estado</label>
+                      <div class="control">
+                        <div class="select is-fullwidth">
+                          <select id="f-Estado">
+                            <option value="Operativo">Operativo</option>
+                            <option value="En reparación">En reparación</option>
+                            <option value="Baja">Baja</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="column is-4">
+                    <div class="field">
+                      <label class="label">Responsable</label>
+                      <div class="control"><input id="f-Responsable" class="input" type="text" placeholder="Ej: Martina V."></div>
+                    </div>
+                  </div>
+
+                  <div class="column is-6">
+                    <div class="field">
+                      <label class="label">Ubicacion</label>
+                      <div class="control"><input id="f-Ubicacion" class="input" type="text" placeholder="Ej: Bodega 2"></div>
+                    </div>
+                  </div>
+
+                  <div class="column is-6">
+                    <div class="field">
+                      <label class="label">Notas</label>
+                      <div class="control"><textarea id="f-Notas" class="textarea" rows="2" placeholder="Observaciones"></textarea></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="field is-grouped">
+                  <div class="control">
+                    <button id="btnSaveItem" class="button is-success">Guardar ítem + QR</button>
+                  </div>
+                  <div class="control">
+                    <button id="btnNewFile" class="button is-primary is-light">Elegir archivo Excel…</button>
+                  </div>
+                </div>
+
+                <article class="message is-info" id="qrMessage" style="display:none;">
+                  <div class="message-header"><p>QR generado</p></div>
+                  <div class="message-body">
+                    <figure class="image is-256x256">
+                      <img id="qrPreview" alt="QR del ítem">
+                    </figure>
+                  </div>
+                </article>
+              </div>
+
               <div class="table-container" id="previewContainer" style="display:none;">
                 <table class="table is-fullwidth is-striped is-hoverable" id="rowsTable">
                   <thead>
@@ -112,6 +229,29 @@
         document.getElementById('previewContainer').style.display = '';
       }
 
+      const inputIds = [
+        'Nombre','NoSerie','Categoria','Cantidad','Fecha Ingreso','Proveedor',
+        'Rut','NoFactura','Estado','Responsable','Ubicacion','Notas'
+      ];
+
+      function getItemFromForm() {
+        const get = (id) => document.getElementById('f-' + id)?.value?.trim() || '';
+        return {
+          Nombre: get('Nombre'),
+          NoSerie: get('NoSerie'),
+          Categoria: get('Categoria'),
+          Cantidad: get('Cantidad'),
+          'Fecha Ingreso': get('Fecha Ingreso'),
+          Proveedor: get('Proveedor'),
+          Rut: get('Rut'),
+          NoFactura: get('NoFactura'),
+          Estado: document.getElementById('f-Estado')?.value || '',
+          Responsable: get('Responsable'),
+          Ubicacion: get('Ubicacion'),
+          Notas: get('Notas'),
+        };
+      }
+
       document.getElementById('btnCreate').addEventListener('click', async () => {
         const savePath = await window.excel.pickSavePath();
         if (!savePath) return;
@@ -139,6 +279,37 @@
         if (canceled || !filePaths.length) return;
         setPath(filePaths[0]);
         showStatus('File selected.', 'is-warning');
+      });
+
+      document.getElementById('btnNewFile').addEventListener('click', async () => {
+        const path = await window.excel.pickSavePath();
+        if (!path) return;
+        setPath(path);
+        showStatus('Archivo seleccionado: ' + path, 'is-info');
+      });
+
+      document.getElementById('btnSaveItem').addEventListener('click', async () => {
+        if (!fileState.path) {
+          const path = await window.excel.pickSavePath();
+          if (!path) return showStatus('Primero selecciona un archivo.', 'is-danger');
+          setPath(path);
+        }
+        const item = getItemFromForm();
+        if (!item.Nombre) return showStatus('El campo "Nombre" es obligatorio.', 'is-danger');
+
+        try {
+          if (!window.excel?.saveItem) {
+            return showStatus('Falta exponer excel.saveItem en preload/main.', 'is-danger');
+          }
+          const dataUrl = await window.excel.saveItem(fileState.path, item);
+          const img = document.getElementById('qrPreview');
+          img.src = dataUrl;
+          document.getElementById('qrMessage').style.display = '';
+          showStatus('Ítem guardado y QR generado.', 'is-success');
+        } catch (err) {
+          console.error(err);
+          showStatus('Error al guardar el ítem o generar el QR.', 'is-danger');
+        }
       });
     </script>
     <script type="module" src="/src/renderer.js"></script>
