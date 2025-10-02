@@ -98,3 +98,14 @@ ipcMain.handle('excel:pickSavePath', async () => {
   });
   return canceled ? null : filePath;
 });
+
+// Add near your other imports
+
+
+// ... keep your existing window creation code ...
+
+// Add this with your other ipcMain.handle blocks:
+ipcMain.handle('item:save', async (_e, filePath, item) => {
+  // item is the object with all fields
+  return utils.saveItemAndGenerateQR(filePath, item);
+});

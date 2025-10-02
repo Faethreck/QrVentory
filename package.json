@@ -33,6 +33,7 @@
   "dependencies": {
     "electron-forge": "^5.2.4",
     "electron-squirrel-startup": "^1.0.1",
-    "exceljs": "^4.4.0"
+    "exceljs": "^4.4.0",
+    "qrcode": "^1.5.4"
   }
 }
