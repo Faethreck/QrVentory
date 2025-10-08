@@ -1,11 +1,10 @@
 // preload.js
-const { contextBridge, ipcRenderer } = require('electron');
+import { contextBridge, ipcRenderer } from 'electron';
 
-contextBridge.exposeInMainWorld('excel', {
-  pickSavePath: () => ipcRenderer.invoke('excel:pickSavePath'),
-  pickOpenPath: () => ipcRenderer.invoke('excel:pickOpenPath'),
-});
-
-contextBridge.exposeInMainWorld('items', {
-  save: (filePath, item) => ipcRenderer.invoke('item:save', filePath, item),
+contextBridge.exposeInMainWorld('api', {
+  saveItem: (item) => ipcRenderer.invoke('item:save', item),
+  listItems: () => ipcRenderer.invoke('items:list'),
+  generateQr: (item) => ipcRenderer.invoke('item:qr', item),
+  deleteItems: (serials) => ipcRenderer.invoke('items:delete', serials),
+  restoreItems: (items) => ipcRenderer.invoke('items:restore', items),
 });

@@ -1,19 +1,18 @@
 <!doctype html>
-<html>
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Hello World!</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
-    <link rel="stylesheet" href="index.css">
-    <script defer src="render.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QrVentoryApp</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css" />
+    <link rel="stylesheet" href="/src/index.css" />
   </head>
   <body>
-    <!-- Hero header -->
     <section class="hero is-primary">
       <div class="hero-body">
         <p class="title">QrVentoryApp</p>
-        <p class="subtitle">Excel tools + QR inventory demo</p>
+        <p class="subtitle">Inventario con c&oacute;digos QR</p>
       </div>
     </section>
 
@@ -21,156 +20,237 @@
       <div class="container">
         <div class="card">
           <header class="card-header">
-            <p class="card-header-title">File Operations</p>
+            <p class="card-header-title">Gesti&oacute;n de inventario</p>
           </header>
+
           <div class="card-content">
-            <div class="content">
-              <div class="field is-grouped is-grouped-multiline">
-                <div class="control"><button id="btnCreate" class="button is-primary">Create Excel</button></div>
-                <div class="control"><button id="btnAddRow" class="button is-link">Add Row</button></div>
-                <div class="control"><button id="btnView" class="button is-info">View</button></div>
-                <div class="control"><button id="btnSelect" class="button is-light">Select File</button></div>
-              </div>
+            <div id="status-notification" class="notification is-hidden" role="status"></div>
 
-              <article class="message is-warning" id="pathMessage" style="display:none;">
-                <div class="message-header">
-                  <p>Selected file</p>
-                </div>
-                <div class="message-body">
-                  <code id="filePath">No file selected</code>
-                </div>
-              </article>
+            <div class="tabs is-toggle is-fullwidth" role="tablist">
+              <ul>
+                <li class="is-active" data-tab-target="tab-form"><a>Nuevo &iacute;tem</a></li>
+                <li data-tab-target="tab-items"><a>&Iacute;tems guardados</a></li>
+              </ul>
+            </div>
 
-              <article class="message is-info" id="statusMessage" style="display:none;">
-                <div class="message-header">
-                  <p>Status</p>
-                </div>
-                <div class="message-body" id="statusText">Ready</div>
-              </article>
+            <div id="tab-form" class="tab-panel tab-panel--form is-active" role="tabpanel" aria-label="Formulario">
+              <form id="item-form" class="form-grid">
+                <div class="columns is-variable is-5 form-layout">
+                  <div class="column is-two-thirds">
+                    <section class="form-section">
+                      <h3 class="form-section__title">Informaci&oacute;n b&aacute;sica</h3>
+                      <div class="columns is-multiline is-variable is-3">
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="input-nombre">Nombre</label>
+                            <div class="control">
+                              <input class="input" id="input-nombre" data-field="Nombre" type="text" placeholder="Ej. Notebook Lenovo" required />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="input-noserie">NoSerie</label>
+                            <div class="control">
+                              <input
+                                class="input"
+                                id="input-noserie"
+                                data-field="NoSerie"
+                                type="text"
+                                placeholder="Se generar&aacute; autom&aacute;ticamente"
+                                readonly
+                                aria-readonly="true"
+                              />
+                            </div>
+                          </div>
+                        </div>
 
-              <!-- Nuevo Ítem form -->
-              <div class="box">
-                <h3 class="title is-5">Nuevo Ítem</h3>
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="input-categoria">Categor&iacute;a</label>
+                            <div class="control">
+                              <input class="input" id="input-categoria" data-field="Categoria" type="text" placeholder="Ej. Computadores" />
+                            </div>
+                          </div>
+                        </div>
 
-                <div class="columns is-multiline">
-                  <div class="column is-4">
-                    <div class="field">
-                      <label class="label">Nombre</label>
-                      <div class="control"><input id="f-Nombre" class="input" type="text" placeholder="Ej: Notebook Lenovo"></div>
-                    </div>
-                  </div>
-
-                  <div class="column is-4">
-                    <div class="field">
-                      <label class="label">NoSerie</label>
-                      <div class="control"><input id="f-NoSerie" class="input" type="text" placeholder="Ej: SN-12345"></div>
-                    </div>
-                  </div>
-
-                  <div class="column is-4">
-                    <div class="field">
-                      <label class="label">Categoria</label>
-                      <div class="control"><input id="f-Categoria" class="input" type="text" placeholder="Ej: Computadores"></div>
-                    </div>
-                  </div>
-
-                  <div class="column is-3">
-                    <div class="field">
-                      <label class="label">Cantidad</label>
-                      <div class="control"><input id="f-Cantidad" class="input" type="number" min="0" step="1" placeholder="Ej: 1"></div>
-                    </div>
-                  </div>
-
-                  <div class="column is-3">
-                    <div class="field">
-                      <label class="label">Fecha Ingreso</label>
-                      <div class="control"><input id="f-Fecha Ingreso" class="input" type="date"></div>
-                    </div>
-                  </div>
-
-                  <div class="column is-3">
-                    <div class="field">
-                      <label class="label">Proveedor</label>
-                      <div class="control"><input id="f-Proveedor" class="input" type="text" placeholder="Ej: Proveedor S.A."></div>
-                    </div>
-                  </div>
-
-                  <div class="column is-3">
-                    <div class="field">
-                      <label class="label">Rut</label>
-                      <div class="control"><input id="f-Rut" class="input" type="text" placeholder="Ej: 76.543.210-9"></div>
-                    </div>
-                  </div>
-
-                  <div class="column is-4">
-                    <div class="field">
-                      <label class="label">NoFactura</label>
-                      <div class="control"><input id="f-NoFactura" class="input" type="text" placeholder="Ej: 123456"></div>
-                    </div>
-                  </div>
-
-                  <div class="column is-4">
-                    <div class="field">
-                      <label class="label">Estado</label>
-                      <div class="control">
-                        <div class="select is-fullwidth">
-                          <select id="f-Estado">
-                            <option value="Operativo">Operativo</option>
-                            <option value="En reparación">En reparación</option>
-                            <option value="Baja">Baja</option>
-                          </select>
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="input-cantidad">Cantidad</label>
+                            <div class="control">
+                              <input class="input" id="input-cantidad" data-field="Cantidad" type="number" min="0" step="1" />
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </section>
+
+                    <section class="form-section">
+                      <h3 class="form-section__title">Detalles de ingreso</h3>
+                      <div class="columns is-multiline is-variable is-3">
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="input-fecha-ingreso">Fecha de ingreso</label>
+                            <div class="control">
+                              <input class="input" id="input-fecha-ingreso" data-field="Fecha Ingreso" type="date" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="input-proveedor">Proveedor</label>
+                            <div class="control">
+                              <input class="input" id="input-proveedor" data-field="Proveedor" type="text" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="input-rut">RUT</label>
+                            <div class="control">
+                              <input class="input" id="input-rut" data-field="Rut" type="text" placeholder="Ej. 12.345.678-5" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="input-nofactura">NoFactura</label>
+                            <div class="control">
+                              <input class="input" id="input-nofactura" data-field="NoFactura" type="text" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
                   </div>
 
-                  <div class="column is-4">
-                    <div class="field">
-                      <label class="label">Responsable</label>
-                      <div class="control"><input id="f-Responsable" class="input" type="text" placeholder="Ej: Martina V."></div>
-                    </div>
-                  </div>
+                  <div class="column is-one-third">
+                    <section class="form-section">
+                      <h3 class="form-section__title">Seguimiento</h3>
+                      <div class="field">
+                        <label class="label" for="input-estado">Estado</label>
+                        <div class="control">
+                          <div class="select is-fullwidth">
+                            <select id="input-estado" data-field="Estado">
+                              <option value="">Selecciona un estado</option>
+                              <option value="Disponible">Disponible</option>
+                              <option value="Asignado">Asignado</option>
+                              <option value="En mantenimiento">En mantenimiento</option>
+                              <option value="Baja">Baja</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
 
-                  <div class="column is-6">
-                    <div class="field">
-                      <label class="label">Ubicacion</label>
-                      <div class="control"><input id="f-Ubicacion" class="input" type="text" placeholder="Ej: Bodega 2"></div>
-                    </div>
-                  </div>
+                      <div class="field">
+                        <label class="label" for="input-responsable">Responsable</label>
+                        <div class="control">
+                          <input class="input" id="input-responsable" data-field="Responsable" type="text" />
+                        </div>
+                      </div>
 
-                  <div class="column is-6">
-                    <div class="field">
-                      <label class="label">Notas</label>
-                      <div class="control"><textarea id="f-Notas" class="textarea" rows="2" placeholder="Observaciones"></textarea></div>
-                    </div>
+                      <div class="field">
+                        <label class="label" for="input-ubicacion">Ubicaci&oacute;n</label>
+                        <div class="control">
+                          <input class="input" id="input-ubicacion" data-field="Ubicacion" type="text" />
+                        </div>
+                      </div>
+                    </section>
+
+                    <section class="form-section">
+                      <h3 class="form-section__title">Notas e imagen</h3>
+                      <div class="field">
+                        <label class="label" for="input-notas">Notas</label>
+                        <div class="control">
+                          <textarea class="textarea" id="input-notas" data-field="Notas" rows="3"></textarea>
+                        </div>
+                      </div>
+
+                      <div class="field">
+                        <label class="label" for="input-imagen">Imagen del &iacute;tem</label>
+                        <div class="file has-name is-fullwidth">
+                          <label class="file-label">
+                            <input
+                              class="file-input"
+                              id="input-imagen"
+                              data-field="Imagen"
+                              type="file"
+                              accept="image/*"
+                            />
+                            <span class="file-cta">
+                              <span class="file-label">Seleccionar imagen...</span>
+                            </span>
+                            <span class="file-name" id="input-imagen-name"
+                              >No se ha seleccionado una imagen</span
+                            >
+                          </label>
+                        </div>
+                      </div>
+
+                      <figure id="image-preview-container" class="image-preview box is-hidden mt-3">
+                        <img id="image-preview" alt="Previsualizaci&oacute;n del &iacute;tem" />
+                      </figure>
+                    </section>
+
+                    <section class="form-section form-section--qr is-hidden" id="qr-section">
+                      <h3 class="form-section__title">C&oacute;digo QR generado</h3>
+                      <div id="qr-container" class="box is-hidden has-text-centered">
+                        <figure class="image is-inline-block">
+                          <img id="qr-image" alt="C&oacute;digo QR generado" />
+                        </figure>
+                      </div>
+                    </section>
                   </div>
                 </div>
 
-                <div class="field is-grouped">
+                <div class="field is-grouped is-justify-content-flex-end">
                   <div class="control">
-                    <button id="btnSaveItem" class="button is-success">Guardar ítem + QR</button>
-                  </div>
-                  <div class="control">
-                    <button id="btnNewFile" class="button is-primary is-light">Elegir archivo Excel…</button>
+                    <button type="submit" class="button is-primary">Guardar &iacute;tem</button>
                   </div>
                 </div>
+              </form>
+            </div>
 
-                <article class="message is-info" id="qrMessage" style="display:none;">
-                  <div class="message-header"><p>QR generado</p></div>
-                  <div class="message-body">
-                    <figure class="image is-256x256">
-                      <img id="qrPreview" alt="QR del ítem">
-                    </figure>
-                  </div>
-                </article>
+            <div id="tab-items" class="tab-panel tab-panel--items" role="tabpanel" aria-label="Items guardados">
+              <div id="empty-state" class="notification is-light is-warning">
+                A&uacute;n no hay &iacute;tems guardados.
               </div>
 
-              <div class="table-container" id="previewContainer" style="display:none;">
-                <table class="table is-fullwidth is-striped is-hoverable" id="rowsTable">
+              <div id="items-table-container" class="table-container is-hidden">
+                <div class="table-actions">
+                  <button type="button" class="button is-danger is-light" id="delete-selected" disabled>
+                    Eliminar seleccionados
+                  </button>
+                  <button type="button" class="button is-warning is-light is-hidden" id="undo-delete" disabled>
+                    Deshacer última eliminación
+                  </button>
+                </div>
+
+                <table class="table is-fullwidth is-striped is-hoverable">
                   <thead>
-                    <tr id="rowsHead"></tr>
+                    <tr>
+                      <th class="has-text-centered selection-column">
+                        <input type="checkbox" id="select-all-rows" aria-label="Seleccionar todos los &iacute;tems" />
+                      </th>
+                      <th>Nombre</th>
+                      <th>NoSerie</th>
+                      <th>Categor&iacute;a</th>
+                      <th>Cantidad</th>
+                      <th>Fecha de ingreso</th>
+                      <th>Proveedor</th>
+                      <th>RUT</th>
+                      <th>NoFactura</th>
+                      <th>Estado</th>
+                      <th>Responsable</th>
+                      <th>Ubicaci&oacute;n</th>
+                      <th>Notas</th>
+                      <th>Imagen</th>
+                    </tr>
                   </thead>
-                  <tbody id="rowsBody"></tbody>
+                  <tbody id="items-table-body"></tbody>
                 </table>
               </div>
             </div>
@@ -179,139 +259,41 @@
       </div>
     </section>
 
-    <!-- Existing scripts -->
-    <!-- index.html buttons logic -->
-    <script>
-      const fileState = { path: null };
+    <div id="item-detail-modal" class="modal">
+      <div class="modal-background" data-close-modal></div>
+      <div class="modal-card">
+        <header class="modal-card-head">
+          <p class="modal-card-title" id="detail-title">Detalle del &iacute;tem</p>
+          <button class="delete" aria-label="Cerrar" data-close-modal></button>
+        </header>
+        <section class="modal-card-body">
+          <div class="columns is-multiline">
+            <div class="column is-two-thirds">
+              <dl id="detail-fields" class="detail-grid"></dl>
+            </div>
+            <div class="column is-one-third has-text-centered">
+              <h4 class="title is-6 mb-3 detail-qr-title">C&oacute;digo QR</h4>
+              <img id="detail-qr" alt="C&oacute;digo QR del &iacute;tem" />
+            </div>
+          </div>
+        </section>
+        <footer class="modal-card-foot is-justify-content-flex-end">
+          <button class="button" data-close-modal>Cerrar</button>
+        </footer>
+      </div>
+    </div>
 
-      function showStatus(text, kind = 'is-info') {
-        const box = document.getElementById('statusMessage');
-        const body = document.getElementById('statusText');
-        box.className = `message ${kind}`;
-        body.textContent = text;
-        box.style.display = '';
-      }
-
-      function setPath(path) {
-        fileState.path = path;
-        const msg = document.getElementById('pathMessage');
-        const code = document.getElementById('filePath');
-        code.textContent = path || 'No file selected';
-        msg.style.display = path ? '' : 'none';
-      }
-
-      function renderRows(rows) {
-        const head = document.getElementById('rowsHead');
-        const body = document.getElementById('rowsBody');
-        head.innerHTML = '';
-        body.innerHTML = '';
-        if (!rows || !rows.length) {
-          document.getElementById('previewContainer').style.display = 'none';
-          return;
-        }
-        // Build header from first row length
-        const cols = Math.max(...rows.map(r => r.length));
-        for (let c = 0; c < cols; c++) {
-          const th = document.createElement('th');
-          th.textContent = `Col ${c+1}`;
-          head.appendChild(th);
-        }
-        // Body
-        rows.forEach(r => {
-          const tr = document.createElement('tr');
-          for (let c = 0; c < cols; c++) {
-            const td = document.createElement('td');
-            td.textContent = r[c] ?? '';
-            tr.appendChild(td);
-          }
-          body.appendChild(tr);
-        });
-        document.getElementById('previewContainer').style.display = '';
-      }
-
-      const inputIds = [
-        'Nombre','NoSerie','Categoria','Cantidad','Fecha Ingreso','Proveedor',
-        'Rut','NoFactura','Estado','Responsable','Ubicacion','Notas'
-      ];
-
-      function getItemFromForm() {
-        const get = (id) => document.getElementById('f-' + id)?.value?.trim() || '';
-        return {
-          Nombre: get('Nombre'),
-          NoSerie: get('NoSerie'),
-          Categoria: get('Categoria'),
-          Cantidad: get('Cantidad'),
-          'Fecha Ingreso': get('Fecha Ingreso'),
-          Proveedor: get('Proveedor'),
-          Rut: get('Rut'),
-          NoFactura: get('NoFactura'),
-          Estado: document.getElementById('f-Estado')?.value || '',
-          Responsable: get('Responsable'),
-          Ubicacion: get('Ubicacion'),
-          Notas: get('Notas'),
-        };
-      }
-
-      document.getElementById('btnCreate').addEventListener('click', async () => {
-        const savePath = await window.excel.pickSavePath();
-        if (!savePath) return;
-        setPath(savePath);
-        await window.excel.create(savePath, ['ID', 'Name', 'Qty']);
-        showStatus('Excel created at: ' + savePath, 'is-success');
-      });
-
-      document.getElementById('btnAddRow').addEventListener('click', async () => {
-        if (!fileState.path) return showStatus('Create or select a file first.', 'is-danger');
-        await window.excel.addRow(fileState.path, [1, 'Cable', 12]);
-        showStatus('Row added.', 'is-success');
-      });
-
-      document.getElementById('btnView').addEventListener('click', async () => {
-        if (!fileState.path) return showStatus('Create or select a file first.', 'is-danger');
-        const rows = await window.excel.view(fileState.path);
-        renderRows(rows);
-        showStatus('Loaded ' + rows.length + ' rows.', 'is-info');
-        console.table(rows);
-      });
-
-      document.getElementById('btnSelect').addEventListener('click', async () => {
-        const { canceled, filePaths } = await window.excel.pickOpenPath();
-        if (canceled || !filePaths.length) return;
-        setPath(filePaths[0]);
-        showStatus('File selected.', 'is-warning');
-      });
-
-      document.getElementById('btnNewFile').addEventListener('click', async () => {
-        const path = await window.excel.pickSavePath();
-        if (!path) return;
-        setPath(path);
-        showStatus('Archivo seleccionado: ' + path, 'is-info');
-      });
-
-      document.getElementById('btnSaveItem').addEventListener('click', async () => {
-        if (!fileState.path) {
-          const path = await window.excel.pickSavePath();
-          if (!path) return showStatus('Primero selecciona un archivo.', 'is-danger');
-          setPath(path);
-        }
-        const item = getItemFromForm();
-        if (!item.Nombre) return showStatus('El campo "Nombre" es obligatorio.', 'is-danger');
-
-        try {
-          if (!window.excel?.saveItem) {
-            return showStatus('Falta exponer excel.saveItem en preload/main.', 'is-danger');
-          }
-          const dataUrl = await window.excel.saveItem(fileState.path, item);
-          const img = document.getElementById('qrPreview');
-          img.src = dataUrl;
-          document.getElementById('qrMessage').style.display = '';
-          showStatus('Ítem guardado y QR generado.', 'is-success');
-        } catch (err) {
-          console.error(err);
-          showStatus('Error al guardar el ítem o generar el QR.', 'is-danger');
-        }
-      });
-    </script>
     <script type="module" src="/src/renderer.js"></script>
   </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+

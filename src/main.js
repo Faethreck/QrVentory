@@ -1,22 +1,38 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+// -------------------------
+// Main process entry point
+// -------------------------
+// Runs in Electron's "main" process. Handles window creation,
+// IPC (inter-process communication), dialogs, and backend logic.
+
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import started from 'electron-squirrel-startup';
-import * as utils from './utils.js';
+import started from 'electron-squirrel-startup'; // Manages Windows installer/uninstaller shortcuts
+import * as utils from './utils.js';             // Custom utility functions (Excel + QR handling)
 
+// -------------------------
+// Path resolution helpers
+// -------------------------
+const excelFilePath = path.join(app.getPath('userData'), 'data.xlsx');
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
+// -------------------------
+// Windows installer/uninstaller hook
+// -------------------------
 if (started) {
   app.quit();
 }
 
+// -------------------------
+// Window creation
+// -------------------------
 const createWindow = () => {
-  // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1024,
+    height: 768,
+    minWidth: 900,
+    minHeight: 600,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -24,25 +40,23 @@ const createWindow = () => {
     },
   });
 
-  // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+    mainWindow.loadFile(
+      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)
+    );
   }
 
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 };
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
+// -------------------------
+// App lifecycle
+// -------------------------
 app.whenReady().then(() => {
   createWindow();
 
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -50,62 +64,31 @@ app.whenReady().then(() => {
   });
 });
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.
-// --- IPC handlers for Excel operations ---
-ipcMain.handle('excel:create', async (_e, filePath, headers) => {
-  await utils.createExcelFile(filePath, headers);
-  return true;
+// -------------------------
+// IPC handlers
+// -------------------------
+ipcMain.handle('item:save', async (_e, item) => {
+  return utils.saveItemAndGenerateQR(excelFilePath, item);
 });
 
-ipcMain.handle('excel:addRow', async (_e, filePath, row) => {
-  await utils.addRowToExcel(filePath, row);
-  return true;
+ipcMain.handle('items:list', async () => {
+  return utils.getAllItems(excelFilePath);
 });
 
-ipcMain.handle('excel:editCell', async (_e, filePath, r, c, v) => {
-  await utils.editCellInExcel(filePath, r, c, v);
-  return true;
+ipcMain.handle('item:qr', async (_e, item) => {
+  return utils.generateQrForItem(item);
 });
 
-ipcMain.handle('excel:view', async (_e, filePath) => {
-  return utils.viewExcelFile(filePath);
+ipcMain.handle('items:delete', async (_e, serials) => {
+  return utils.deleteItemsBySerial(excelFilePath, serials);
 });
 
-// (Optional) show a Save dialog from renderer via preload
-ipcMain.handle('excel:pickOpenPath', async () => {
-  return dialog.showOpenDialog({
-    title: 'Open Excel File',
-    properties: ['openFile'],
-    filters: [{ name: 'Excel', extensions: ['xlsx'] }],
-  });
-});
-
-ipcMain.handle('excel:pickSavePath', async () => {
-  const { filePath, canceled } = await dialog.showSaveDialog({
-    title: 'Save Excel File',
-    defaultPath: 'data.xlsx',
-    filters: [{ name: 'Excel', extensions: ['xlsx'] }],
-  });
-  return canceled ? null : filePath;
-});
-
-// Add near your other imports
-
-
-// ... keep your existing window creation code ...
-
-// Add this with your other ipcMain.handle blocks:
-ipcMain.handle('item:save', async (_e, filePath, item) => {
-  // item is the object with all fields
-  return utils.saveItemAndGenerateQR(filePath, item);
+ipcMain.handle('items:restore', async (_e, items) => {
+  return utils.restoreItems(excelFilePath, items);
 });
