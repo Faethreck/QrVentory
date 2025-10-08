@@ -4,7 +4,7 @@
 // Runs in Electron's "main" process. Handles window creation,
 // IPC (inter-process communication), dialogs, and backend logic.
 
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeImage } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import started from 'electron-squirrel-startup'; // Manages Windows installer/uninstaller shortcuts
@@ -16,6 +16,23 @@ import * as utils from './utils.js';             // Custom utility functions (Ex
 const excelFilePath = path.join(app.getPath('userData'), 'data.xlsx');
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const resolveIconPath = () => {
+  const iconSegments = ['assets', 'icons', 'app-icon.ico'];
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, ...iconSegments);
+  }
+  return path.join(process.cwd(), ...iconSegments);
+};
+
+const createWindowIcon = () => {
+  const iconPath = resolveIconPath();
+  const icon = nativeImage.createFromPath(iconPath);
+  if (icon.isEmpty()) {
+    console.warn('Window icon missing at', iconPath);
+  }
+  return icon;
+};
 
 // -------------------------
 // Windows installer/uninstaller hook
@@ -33,6 +50,7 @@ const createWindow = () => {
     height: 768,
     minWidth: 900,
     minHeight: 600,
+    icon: createWindowIcon(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -92,3 +110,10 @@ ipcMain.handle('items:delete', async (_e, serials) => {
 ipcMain.handle('items:restore', async (_e, items) => {
   return utils.restoreItems(excelFilePath, items);
 });
+
+
+
+
+
+
+
