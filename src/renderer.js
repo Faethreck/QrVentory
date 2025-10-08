@@ -1,4 +1,4 @@
-ï»¿const statusNotification = document.getElementById('status-notification');
+const statusNotification = document.getElementById('status-notification');
 const form = document.getElementById('item-form');
 const qrContainer = document.getElementById('qr-container');
 const qrSection = document.getElementById('qr-section');
@@ -32,12 +32,27 @@ const selectedItems = new Map();
 const DETAIL_HIGHLIGHT_CLASS = 'is-detail-highlight';
 let lastDeletedItems = [];
 
-function getSelectionKey(serial, rowNumber) {
-  if (serial) {
-    return `SERIAL:${serial}`;
+const DATA_ROW_MIN = 2;
+const normalizeSerial = (value) => (value == null ? '' : String(value).trim());
+const normalizeRowNumber = (value) => {
+  if (Number.isInteger(value)) {
+    return value >= DATA_ROW_MIN ? value : null;
   }
-  if (Number.isInteger(rowNumber) && rowNumber >= 2) {
-    return `ROW:${rowNumber}`;
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric >= DATA_ROW_MIN ? numeric : null;
+};
+const getItemSerial = (item) => (item ? normalizeSerial(item.NoSerie) : '');
+const getItemRowNumber = (item) => normalizeRowNumber(item?._rowNumber);
+
+
+function getSelectionKey(serial, rowNumber) {
+  const normalizedSerial = normalizeSerial(serial);
+  if (normalizedSerial) {
+    return `SERIAL:${normalizedSerial}`;
+  }
+  const normalizedRow = normalizeRowNumber(rowNumber);
+  if (normalizedRow != null) {
+    return `ROW:${normalizedRow}`;
   }
   return null;
 }
@@ -83,24 +98,18 @@ function stripInternalFields(item) {
 }
 
 function findCachedItem(serial, rowNumber) {
-  const normalizedSerial = serial ? String(serial).trim() : '';
-  const normalizedRow = Number.isInteger(rowNumber) ? rowNumber : null;
+  const normalizedSerial = normalizeSerial(serial);
+  const normalizedRow = normalizeRowNumber(rowNumber);
 
   if (normalizedSerial) {
-    const bySerial = cachedItems.find((item) => {
-      if (!item) {
-        return false;
-      }
-      const itemSerial = item.NoSerie != null ? String(item.NoSerie).trim() : '';
-      return itemSerial === normalizedSerial;
-    });
+    const bySerial = cachedItems.find((item) => getItemSerial(item) === normalizedSerial);
     if (bySerial) {
       return bySerial;
     }
   }
 
   if (normalizedRow != null) {
-    return cachedItems.find((item) => Number.isInteger(item?._rowNumber) && item._rowNumber === normalizedRow);
+    return cachedItems.find((item) => getItemRowNumber(item) === normalizedRow);
   }
 
   return undefined;
@@ -120,8 +129,8 @@ function toggleSelection(serial, rowNumber, shouldSelect, row) {
 
   if (shouldSelect) {
     selectedItems.set(key, {
-      serial: serial || '',
-      rowNumber: Number.isInteger(rowNumber) ? rowNumber : null,
+      serial: normalizeSerial(serial),
+      rowNumber: normalizeRowNumber(rowNumber),
     });
     if (row) {
       row.classList.add('is-selected');
@@ -184,7 +193,7 @@ if (deleteSelectedButton) {
       return;
     }
 
-    const confirmation = window.confirm('Â¿Quieres eliminar los Ã­tems seleccionados?');
+    const confirmation = window.confirm('¿Quieres eliminar los ítems seleccionados?');
     if (!confirmation) {
       return;
     }
@@ -204,7 +213,7 @@ if (deleteSelectedButton) {
             .filter(Boolean);
 
       if (deletedCount > 0) {
-        showStatus(`Se eliminaron ${deletedCount} Ã­tems.`, 'is-success');
+        showStatus(`Se eliminaron ${deletedCount} ítems.`, 'is-success');
         selectedItems.clear();
         highlightRowBySerial(null);
         if (selectAllCheckbox) {
@@ -215,13 +224,13 @@ if (deleteSelectedButton) {
         updateUndoUI();
         await refreshItems();
       } else {
-        showStatus('No se eliminÃ³ ningÃºn Ã­tem.', 'is-warning');
+        showStatus('No se eliminó ningún ítem.', 'is-warning');
         lastDeletedItems = [];
         updateUndoUI();
       }
     } catch (error) {
       console.error('Failed to delete selected items', error);
-      showStatus('No se pudieron eliminar los Ã­tems seleccionados.', 'is-danger');
+      showStatus('No se pudieron eliminar los ítems seleccionados.', 'is-danger');
       lastDeletedItems = [];
       updateUndoUI();
     } finally {
@@ -242,14 +251,14 @@ if (undoDeleteButton) {
       const restoredCount = Number(result?.restored ?? 0);
 
       if (restoredCount > 0) {
-        showStatus(`Se restauraron ${restoredCount} Ã­tems.`, 'is-success');
+        showStatus(`Se restauraron ${restoredCount} ítems.`, 'is-success');
         await refreshItems();
       } else {
-        showStatus('No se restaurÃ³ ningÃºn Ã­tem.', 'is-warning');
+        showStatus('No se restauró ningún ítem.', 'is-warning');
       }
     } catch (error) {
       console.error('Failed to restore deleted items', error);
-      showStatus('No se pudieron restaurar los Ã­tems.', 'is-danger');
+      showStatus('No se pudieron restaurar los ítems.', 'is-danger');
     } finally {
       selectedItems.clear();
       updateSelectionUI();
@@ -531,15 +540,75 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
+function createItemRow(item) {
+  const row = document.createElement('tr');
+  const serial = getItemSerial(item);
+  const rowNumber = getItemRowNumber(item);
+
+  row.dataset.serial = serial;
+  row.dataset.rowNumber = rowNumber != null ? String(rowNumber) : '';
+
+  const selectionKey = getSelectionKey(serial, rowNumber);
+
+  const selectionCell = document.createElement('td');
+  selectionCell.classList.add('table-selection-cell');
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.dataset.rowSelect = 'true';
+
+  const isSelected = selectionKey ? selectedItems.has(selectionKey) : false;
+  checkbox.checked = isSelected;
+  if (isSelected) {
+    row.classList.add('is-selected');
+  }
+
+  checkbox.addEventListener('click', (event) => {
+    event.stopPropagation();
+    toggleSelection(serial, rowNumber, checkbox.checked, row);
+  });
+
+  selectionCell.appendChild(checkbox);
+  row.appendChild(selectionCell);
+
+  FIELD_KEYS.forEach((key) => {
+    const cell = document.createElement('td');
+    if (key === 'Imagen') {
+      if (item[key]) {
+        const image = document.createElement('img');
+        image.src = item[key];
+        image.alt = `Imagen de ${item.Nombre || 'item'}`;
+        image.classList.add('table-image');
+        cell.appendChild(image);
+      } else {
+        cell.textContent = 'N/A';
+      }
+    } else {
+      const value = item[key];
+      cell.textContent = value !== undefined && value !== null ? String(value) : '';
+    }
+    row.appendChild(cell);
+  });
+
+  row.addEventListener('click', () => {
+    openDetailModal(item).catch((error) => {
+      console.error('Failed to open detail modal', error);
+    });
+  });
+
+  return row;
+}
+
 function renderItems(items) {
-  cachedItems = items;
+  const normalizedItems = Array.isArray(items) ? items : [];
+  cachedItems = normalizedItems;
   tableBody.innerHTML = '';
 
   const availableKeys = new Set();
 
-  (items || []).forEach((item) => {
-    const serial = item && item.NoSerie != null ? String(item.NoSerie).trim() : '';
-    const rowNumber = Number.isInteger(item?._rowNumber) ? item._rowNumber : null;
+  normalizedItems.forEach((item) => {
+    const serial = getItemSerial(item);
+    const rowNumber = getItemRowNumber(item);
     const key = getSelectionKey(serial, rowNumber);
     if (key) {
       availableKeys.add(key);
@@ -552,7 +621,7 @@ function renderItems(items) {
     }
   });
 
-  if (!items || items.length === 0) {
+  if (normalizedItems.length === 0) {
     highlightRowBySerial(null);
     selectedItems.clear();
     updateSelectionUI();
@@ -560,11 +629,11 @@ function renderItems(items) {
     tableContainer.classList.remove('is-hidden');
     emptyState.classList.add('is-hidden');
 
-    const columnCount = FIELD_KEYS.length + 1; // selection column + data columns
+    const columnCount = FIELD_KEYS.length + 1;
     tableBody.innerHTML = `
       <tr class="table-empty-row">
         <td colspan="${columnCount}" class="has-text-centered has-text-grey">
-          AÃºn no hay Ã­tems guardados.
+          Aun no hay items guardados.
         </td>
       </tr>
     `;
@@ -576,58 +645,12 @@ function renderItems(items) {
   emptyState.classList.add('is-hidden');
   tableContainer.classList.remove('is-hidden');
 
-  items.forEach((item) => {
-    const row = document.createElement('tr');
-    const serial = item && item.NoSerie != null ? String(item.NoSerie).trim() : '';
-    const rowNumber = Number.isInteger(item?._rowNumber) ? item._rowNumber : null;
-    row.dataset.serial = serial;
-    row.dataset.rowNumber = rowNumber != null ? String(rowNumber) : '';
-    const selectionKey = getSelectionKey(serial, rowNumber);
-
-    const selectionCell = document.createElement('td');
-    selectionCell.classList.add('table-selection-cell');
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.dataset.rowSelect = 'true';
-    const isSelected = selectionKey ? selectedItems.has(selectionKey) : false;
-    checkbox.checked = isSelected;
-    if (isSelected) {
-      row.classList.add('is-selected');
-    }
-    checkbox.addEventListener('click', (event) => {
-      event.stopPropagation();
-      toggleSelection(serial, rowNumber, checkbox.checked, row);
-    });
-    selectionCell.appendChild(checkbox);
-    row.appendChild(selectionCell);
-
-    FIELD_KEYS.forEach((key) => {
-      const cell = document.createElement('td');
-      if (key === 'Imagen') {
-        if (item[key]) {
-          const image = document.createElement('img');
-          image.src = item[key];
-          image.alt = `Imagen de ${item.Nombre || 'item'}`;
-          image.classList.add('table-image');
-          cell.appendChild(image);
-        } else {
-          cell.textContent = 'N/A';
-        }
-      } else {
-        const value = item[key];
-        cell.textContent = value !== undefined && value !== null ? String(value) : '';
-      }
-      row.appendChild(cell);
-    });
-
-    row.addEventListener('click', () => {
-      openDetailModal(item).catch((error) => {
-        console.error('Failed to open detail modal', error);
-      });
-    });
-
-    tableBody.appendChild(row);
+  const fragment = document.createDocumentFragment();
+  normalizedItems.forEach((item) => {
+    fragment.appendChild(createItemRow(item));
   });
+
+  tableBody.appendChild(fragment);
 
   updateSelectionUI();
   updateUndoUI();
@@ -731,5 +754,13 @@ form.addEventListener('submit', async (event) => {
 
 setActiveTab('tab-form');
 refreshItems();
+
+
+
+
+
+
+
+
 
 

@@ -1,11 +1,15 @@
-﻿// src/utils.js
+// src/utils.js
 // Utility functions for Excel file handling and QR code generation
 
-import fs from 'fs';
+import { access } from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
 import ExcelJS from 'exceljs';
 import QRCode from 'qrcode';
 
 const EMPTY_PIXEL_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
+
+const SHEET_NAME = 'Sheet1';
+const DATA_START_ROW = 2;
 
 const HEADERS = [
   'Nombre',
@@ -23,54 +27,72 @@ const HEADERS = [
   'Imagen',
 ];
 
+const HEADER_INDEX = HEADERS.reduce((accumulator, header, index) => {
+  accumulator[header] = index;
+  return accumulator;
+}, {});
+const SERIAL_COLUMN_INDEX = HEADER_INDEX.NoSerie + 1;
+
+async function fileExists(filePath) {
+  try {
+    await access(filePath, fsConstants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function ensureHeaderRow(sheet) {
+  const headerRow = sheet.getRow(1);
+  const rowValues = headerRow.values.slice(1);
+  const matches =
+    rowValues.length === HEADERS.length &&
+    rowValues.every((value, index) => value === HEADERS[index]);
+
+  if (matches) {
+    return false;
+  }
+
+  if (rowValues.length > 0) {
+    sheet.spliceRows(1, 1, HEADERS);
+  } else {
+    sheet.insertRow(1, HEADERS);
+  }
+
+  return true;
+}
+
 async function ensureWorkbook(filePath) {
   const workbook = new ExcelJS.Workbook();
-  const exists = fs.existsSync(filePath);
+  const exists = await fileExists(filePath);
 
   if (exists) {
     await workbook.xlsx.readFile(filePath);
-    let sheet = workbook.getWorksheet('Sheet1');
-    let mutated = false;
-
-    if (!sheet) {
-      sheet = workbook.addWorksheet('Sheet1');
-      sheet.addRow(HEADERS);
-      mutated = true;
-    } else {
-      const headerRow = sheet.getRow(1).values.slice(1);
-      const headersMatch =
-        headerRow.length === HEADERS.length &&
-        headerRow.every((h, i) => h === HEADERS[i]);
-
-      if (!headersMatch) {
-        if (headerRow.length) {
-          sheet.spliceRows(1, 1, HEADERS);
-        } else {
-          sheet.insertRow(1, HEADERS);
-        }
-        mutated = true;
-      }
-    }
-
-    if (mutated) {
-      await workbook.xlsx.writeFile(filePath);
-    }
-
-    return { workbook, sheet: workbook.getWorksheet('Sheet1') };
   }
 
-  const sheet = workbook.addWorksheet('Sheet1');
-  sheet.addRow(HEADERS);
-  await workbook.xlsx.writeFile(filePath);
+  let sheet = workbook.getWorksheet(SHEET_NAME);
+  let mutated = false;
+
+  if (!sheet) {
+    sheet = workbook.addWorksheet(SHEET_NAME);
+    sheet.addRow(HEADERS);
+    mutated = true;
+  } else if (ensureHeaderRow(sheet)) {
+    mutated = true;
+  }
+
+  if (!exists || mutated) {
+    await workbook.xlsx.writeFile(filePath);
+  }
 
   return { workbook, sheet };
 }
 
 function normalizeItem(rawItem = {}) {
   if (!rawItem || typeof rawItem !== 'object') {
-    return HEADERS.reduce((acc, header) => {
-      acc[header] = '';
-      return acc;
+    return HEADERS.reduce((accumulator, header) => {
+      accumulator[header] = '';
+      return accumulator;
     }, {});
   }
 
@@ -129,6 +151,56 @@ function buildPayload(item) {
   };
 }
 
+function normalizeSerial(value) {
+  return value == null ? '' : String(value).trim();
+}
+
+function normalizeRowNumber(value) {
+  if (Number.isInteger(value)) {
+    return value >= DATA_START_ROW ? value : null;
+  }
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric >= DATA_START_ROW ? numeric : null;
+}
+
+function extractSerialFromValue(value) {
+  if (value == null) {
+    return '';
+  }
+
+  if (typeof value === 'object') {
+    if ('text' in value && value.text != null) {
+      return normalizeSerial(value.text);
+    }
+    if ('richText' in value && Array.isArray(value.richText)) {
+      const text = value.richText.map((entry) => entry.text ?? '').join('');
+      return normalizeSerial(text);
+    }
+    if ('result' in value && value.result != null) {
+      return normalizeSerial(value.result);
+    }
+    if ('formula' in value && value.formula != null) {
+      return normalizeSerial(value.formula);
+    }
+  }
+
+  return normalizeSerial(value);
+}
+
+function rowToNormalizedItem(row, rowNumber) {
+  const rowValues = row.values.slice(1);
+  const raw = {};
+  HEADERS.forEach((header, index) => {
+    raw[header] = rowValues[index] ?? '';
+  });
+
+  const normalized = normalizeItem(raw);
+  if (Number.isInteger(rowNumber)) {
+    normalized._rowNumber = rowNumber;
+  }
+  return normalized;
+}
+
 export async function generateQrForItem(rawItem) {
   const item = normalizeItem(rawItem);
   const qrItem = {
@@ -171,20 +243,13 @@ export async function getAllItems(filePath) {
   }
 
   const items = [];
-  sheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) {
-      return;
+  for (let rowNumber = DATA_START_ROW; rowNumber <= sheet.rowCount; rowNumber += 1) {
+    const row = sheet.getRow(rowNumber);
+    if (!row || !row.hasValues) {
+      continue;
     }
-
-    const rowValues = row.values.slice(1);
-    const item = {};
-    HEADERS.forEach((header, index) => {
-      item[header] = rowValues[index] ?? '';
-    });
-    const normalized = normalizeItem(item);
-    normalized._rowNumber = rowNumber;
-    items.push(normalized);
-  });
+    items.push(rowToNormalizedItem(row, rowNumber));
+  }
 
   return items;
 }
@@ -201,25 +266,18 @@ export async function deleteItemsBySerial(filePath, entries = []) {
       }
 
       if (typeof entry === 'string') {
-        const serial = entry.trim();
+        const serial = normalizeSerial(entry);
         return serial ? { serial, rowNumber: null } : null;
       }
 
-      const serial = entry.serial != null ? String(entry.serial).trim() : '';
-      const rowNumber = Number.isInteger(entry.rowNumber)
-        ? entry.rowNumber
-        : Number.isFinite(Number(entry.rowNumber))
-          ? Number(entry.rowNumber)
-          : null;
+      const serial = normalizeSerial(entry.serial);
+      const rowNumber = normalizeRowNumber(entry.rowNumber);
 
-      if (!serial && (rowNumber == null || rowNumber < 2)) {
+      if (!serial && rowNumber == null) {
         return null;
       }
 
-      return {
-        serial,
-        rowNumber: rowNumber != null && rowNumber >= 2 ? rowNumber : null,
-      };
+      return { serial, rowNumber };
     })
     .filter(Boolean);
 
@@ -232,8 +290,6 @@ export async function deleteItemsBySerial(filePath, entries = []) {
     return { deleted: 0, items: [] };
   }
 
-  let deleted = 0;
-  const removedItems = [];
   const rowTargets = new Set(
     normalizedEntries
       .map((entry) => entry.rowNumber)
@@ -242,19 +298,20 @@ export async function deleteItemsBySerial(filePath, entries = []) {
   const serialTargets = new Set(
     normalizedEntries
       .map((entry) => entry.serial)
-      .filter((serial) => serial && serial.length > 0),
+      .filter((serial) => Boolean(serial)),
   );
 
-  for (let rowNumber = sheet.rowCount; rowNumber >= 2; rowNumber -= 1) {
+  let deleted = 0;
+  const removedItems = [];
+
+  for (let rowNumber = sheet.rowCount; rowNumber >= DATA_START_ROW; rowNumber -= 1) {
     const shouldRemoveByRow = rowTargets.has(rowNumber);
-    let shouldRemoveBySerial = false;
     let serial = '';
+    let shouldRemoveBySerial = false;
 
     if (!shouldRemoveByRow && serialTargets.size > 0) {
-      const cellValue = sheet.getCell(rowNumber, 2).value;
-      serial = typeof cellValue === 'object' && cellValue !== null && 'text' in cellValue
-        ? String(cellValue.text).trim()
-        : String(cellValue ?? '').trim();
+      const cellValue = sheet.getCell(rowNumber, SERIAL_COLUMN_INDEX).value;
+      serial = extractSerialFromValue(cellValue);
       shouldRemoveBySerial = Boolean(serial && serialTargets.has(serial));
     }
 
@@ -263,19 +320,15 @@ export async function deleteItemsBySerial(filePath, entries = []) {
     }
 
     const row = sheet.getRow(rowNumber);
-    const rowValues = row.values.slice(1);
-    const item = {};
-    HEADERS.forEach((header, index) => {
-      item[header] = rowValues[index] ?? '';
-    });
-    removedItems.push(normalizeItem(item));
+    removedItems.push(rowToNormalizedItem(row, rowNumber));
 
     sheet.spliceRows(rowNumber, 1);
     deleted += 1;
+
     if (shouldRemoveByRow) {
       rowTargets.delete(rowNumber);
     }
-    if (shouldRemoveBySerial) {
+    if (shouldRemoveBySerial && serial) {
       serialTargets.delete(serial);
     }
   }
@@ -297,19 +350,21 @@ export async function restoreItems(filePath, items = []) {
     return { restored: 0 };
   }
 
-  let restored = 0;
+  const rowsToAdd = [];
   items.forEach((raw) => {
     if (!raw || typeof raw !== 'object') {
       return;
     }
-    const normalized = normalizeItem(raw);
-    sheet.addRow(itemToRow(normalized));
-    restored += 1;
+    rowsToAdd.push(itemToRow(normalizeItem(raw)));
   });
 
-  if (restored > 0) {
+  rowsToAdd.forEach((rowValues) => {
+    sheet.addRow(rowValues);
+  });
+
+  if (rowsToAdd.length > 0) {
     await workbook.xlsx.writeFile(filePath);
   }
 
-  return { restored };
+  return { restored: rowsToAdd.length };
 }
