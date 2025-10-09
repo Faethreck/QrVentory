@@ -324,13 +324,6 @@ body {
   text-overflow: ellipsis;
 }
 
-#items-table-container tbody td:hover {
-  overflow: visible;
-  white-space: normal;
-  z-index: 1;
-  position: relative;
-}
-
 #items-table-container thead th .table-sort-button {
   font-size: 0.9rem;
   max-width: 100%;

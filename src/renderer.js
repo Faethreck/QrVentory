@@ -812,12 +812,17 @@ function createItemRow(item) {
         image.alt = `Imagen de ${item.Nombre || 'item'}`;
         image.classList.add('table-image');
         cell.appendChild(image);
+        cell.title = image.alt;
       } else {
         cell.textContent = 'N/A';
+        cell.title = 'Sin imagen';
       }
     } else {
       const value = item[key];
-      cell.textContent = value !== undefined && value !== null ? String(value) : '';
+      const textValue =
+        value !== undefined && value !== null ? String(value) : '';
+      cell.textContent = textValue;
+      cell.title = textValue;
     }
     row.appendChild(cell);
   });
