@@ -33,6 +33,28 @@ const HEADER_INDEX = HEADERS.reduce((accumulator, header, index) => {
 }, {});
 const SERIAL_COLUMN_INDEX = HEADER_INDEX.NoSerie + 1;
 
+const EXPORT_COLUMN_WIDTHS = {
+  Nombre: 28,
+  NoSerie: 18,
+  Categoria: 20,
+  Cantidad: 12,
+  'Fecha Ingreso': 16,
+  Proveedor: 26,
+  Rut: 16,
+  NoFactura: 16,
+  Estado: 14,
+  Responsable: 24,
+  Ubicacion: 26,
+  Notas: 42,
+  Imagen: 12,
+};
+
+const HEADER_FILL_COLOR = 'FF4A6572';
+const HEADER_FONT_COLOR = 'FFFFFFFF';
+const STRIPED_FILL_COLOR = 'FFF4F8FA';
+const BORDER_COLOR = 'FFD6DEE2';
+const DATA_FONT_COLOR = 'FF1F2629';
+
 async function fileExists(filePath) {
   try {
     await access(filePath, fsConstants.F_OK);
@@ -252,6 +274,126 @@ export async function getAllItems(filePath) {
   }
 
   return items;
+}
+
+export async function exportItemsToFile(sourcePath, destinationPath) {
+  if (!destinationPath) {
+    throw new Error('destinationPath is required');
+  }
+
+  const items = await getAllItems(sourcePath);
+  const timestamp = new Date();
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'QrVentory';
+  workbook.lastModifiedBy = 'QrVentory';
+  workbook.created = timestamp;
+  workbook.modified = timestamp;
+
+  const sheet = workbook.addWorksheet('Inventario', {
+    views: [{ state: 'frozen', ySplit: 1 }],
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true },
+  });
+
+  sheet.columns = HEADERS.map((header) => ({
+    header,
+    key: header,
+    width: EXPORT_COLUMN_WIDTHS[header] ?? 20,
+  }));
+
+  sheet.columns.forEach((column) => {
+    column.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+  });
+
+  sheet.getColumn('Cantidad').alignment = { vertical: 'middle', horizontal: 'center' };
+  sheet.getColumn('Cantidad').numFmt = '#,##0';
+  sheet.getColumn('Fecha Ingreso').alignment = { vertical: 'middle', horizontal: 'center' };
+  sheet.getColumn('Fecha Ingreso').numFmt = 'yyyy-mm-dd';
+  sheet.getColumn('Rut').alignment = { vertical: 'middle', horizontal: 'center' };
+  sheet.getColumn('NoSerie').alignment = { vertical: 'middle', horizontal: 'center' };
+  sheet.getColumn('Imagen').alignment = { vertical: 'middle', horizontal: 'center' };
+
+  const headerRow = sheet.getRow(1);
+  styleHeaderRow(headerRow);
+
+  items.forEach((item, index) => {
+    const exportRow = buildExportRow(item);
+    const row = sheet.addRow(exportRow);
+    styleDataRow(row, index % 2 === 1);
+  });
+
+  const lastHeaderCell = headerRow.getCell(headerRow.cellCount).address;
+  sheet.autoFilter = `${headerRow.getCell(1).address}:${lastHeaderCell}`;
+  sheet.properties.defaultRowHeight = 18;
+
+  await workbook.xlsx.writeFile(destinationPath);
+  return { exported: items.length };
+}
+
+function buildExportRow(rawItem) {
+  const item = normalizeItem(rawItem);
+  const row = {};
+
+  HEADERS.forEach((header) => {
+    switch (header) {
+      case 'Fecha Ingreso': {
+        const value = item['Fecha Ingreso'];
+        const date = value ? new Date(value) : null;
+        row[header] =
+          date && !Number.isNaN(date.getTime()) ? date : value || '';
+        break;
+      }
+      case 'Cantidad': {
+        const quantity = Number(item.Cantidad);
+        row[header] = Number.isFinite(quantity) ? quantity : item.Cantidad || '';
+        break;
+      }
+      case 'Imagen': {
+        row[header] = item.Imagen ? 'Sí' : 'No';
+        break;
+      }
+      default:
+        row[header] = item[header] ?? '';
+        break;
+    }
+  });
+
+  return row;
+}
+
+function styleHeaderRow(row) {
+  row.height = 24;
+  row.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+
+  row.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: HEADER_FONT_COLOR }, size: 11 };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_FILL_COLOR } };
+    cell.border = createBorder();
+  });
+}
+
+function styleDataRow(row, isStriped) {
+  row.height = 20;
+  row.eachCell((cell) => {
+    cell.font = { color: { argb: DATA_FONT_COLOR }, size: 10 };
+    cell.border = createBorder();
+    if (isStriped) {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: STRIPED_FILL_COLOR },
+      };
+    }
+  });
+}
+
+function createBorder() {
+  const edge = { style: 'thin', color: { argb: BORDER_COLOR } };
+  return {
+    top: edge,
+    left: edge,
+    bottom: edge,
+    right: edge,
+  };
 }
 
 export async function deleteItemsBySerial(filePath, entries = []) {

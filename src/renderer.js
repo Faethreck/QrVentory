@@ -21,6 +21,10 @@ const imagePreviewContainer = document.getElementById('image-preview-container')
 const deleteSelectedButton = document.getElementById('delete-selected');
 const selectAllCheckbox = document.getElementById('select-all-rows');
 const undoDeleteButton = document.getElementById('undo-delete');
+const exportButton = document.getElementById('export-items');
+const filterInputs = document.querySelectorAll('[data-filter-key]');
+const clearFiltersButton = document.getElementById('clear-filters');
+const sortButtons = document.querySelectorAll('.table-sort-button');
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 let imageDataUrl = '';
@@ -28,9 +32,15 @@ let imageDataUrl = '';
 const fieldElements = Array.from(document.querySelectorAll('[data-field]'));
 const FIELD_KEYS = fieldElements.map((element) => element.dataset.field);
 let cachedItems = [];
+let displayedItems = [];
 const selectedItems = new Map();
+const filters = {};
 const DETAIL_HIGHLIGHT_CLASS = 'is-detail-highlight';
 let lastDeletedItems = [];
+let currentSort = {
+  key: null,
+  direction: 'asc',
+};
 
 const DATA_ROW_MIN = 2;
 const normalizeSerial = (value) => (value == null ? '' : String(value).trim());
@@ -57,10 +67,128 @@ function getSelectionKey(serial, rowNumber) {
   return null;
 }
 
+function normalizeText(value) {
+  const text = String(value ?? '').toLowerCase();
+  try {
+    return text.normalize('NFD').replace(/\p{Diacritic}/gu, '');
+  } catch {
+    return text;
+  }
+}
+
+function hasActiveFilters() {
+  return Object.values(filters).some((value) => value);
+}
+
+function updateFilterUIState() {
+  if (!clearFiltersButton) {
+    return;
+  }
+  clearFiltersButton.disabled = !hasActiveFilters();
+}
+
+function itemMatchesFilters(item) {
+  return Object.entries(filters).every(([key, needle]) => {
+    if (!needle) {
+      return true;
+    }
+    const haystack = normalizeText(item?.[key]);
+    return haystack.includes(needle);
+  });
+}
+
+function filterItems(items) {
+  return items.filter((item) => itemMatchesFilters(item));
+}
+
+function getSortValue(item, key) {
+  const value = item?.[key];
+
+  if (key === 'Cantidad') {
+    const numeric = Number(value);
+    return Number.isNaN(numeric) ? Number.NEGATIVE_INFINITY : numeric;
+  }
+
+  if (key === 'Imagen') {
+    return value ? 1 : 0;
+  }
+
+  if (key === 'Fecha Ingreso') {
+    const timestamp = Date.parse(value);
+    if (!Number.isNaN(timestamp)) {
+      return timestamp;
+    }
+  }
+
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  return normalizeText(value);
+}
+
+function sortItems(items) {
+  if (!currentSort.key) {
+    return [...items];
+  }
+
+  const direction = currentSort.direction === 'desc' ? -1 : 1;
+  const key = currentSort.key;
+
+  return [...items].sort((a, b) => {
+    const valueA = getSortValue(a, key);
+    const valueB = getSortValue(b, key);
+
+    if (valueA < valueB) {
+      return -1 * direction;
+    }
+    if (valueA > valueB) {
+      return 1 * direction;
+    }
+
+    const fallbackA = normalizeText(a?.Nombre);
+    const fallbackB = normalizeText(b?.Nombre);
+    if (fallbackA < fallbackB) {
+      return -1;
+    }
+    if (fallbackA > fallbackB) {
+      return 1;
+    }
+    return 0;
+  });
+}
+
+function applyFiltersAndSort(items) {
+  const filtered = filterItems(items);
+  return sortItems(filtered);
+}
+
+function updateSortIndicators() {
+  sortButtons.forEach((button) => {
+    const sortKey = button.dataset.sortKey;
+    if (!sortKey) {
+      return;
+    }
+    const isActive = currentSort.key === sortKey;
+    button.dataset.sortActive = isActive ? 'true' : 'false';
+    if (isActive) {
+      button.dataset.sortDirection = currentSort.direction;
+    } else {
+      delete button.dataset.sortDirection;
+    }
+  });
+}
+
 function updateSelectionUI() {
-  const totalItems = cachedItems.length;
-  const selectedCount = selectedItems.size;
-  const hasSelection = selectedCount > 0;
+  const totalItems = displayedItems.length;
+  const visibleSelectedCount = displayedItems.reduce((accumulator, item) => {
+    const key = getSelectionKey(getItemSerial(item), getItemRowNumber(item));
+    if (key && selectedItems.has(key)) {
+      return accumulator + 1;
+    }
+    return accumulator;
+  }, 0);
+  const hasSelection = selectedItems.size > 0;
 
   if (deleteSelectedButton) {
     deleteSelectedButton.disabled = !hasSelection;
@@ -73,11 +201,107 @@ function updateSelectionUI() {
       selectAllCheckbox.disabled = true;
     } else {
       selectAllCheckbox.disabled = false;
-      selectAllCheckbox.checked = selectedCount > 0 && selectedCount === totalItems;
-      selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < totalItems;
+      selectAllCheckbox.checked = visibleSelectedCount > 0 && visibleSelectedCount === totalItems;
+      selectAllCheckbox.indeterminate =
+        visibleSelectedCount > 0 && visibleSelectedCount < totalItems;
     }
   }
 }
+
+filterInputs.forEach((input) => {
+  const key = input.dataset.filterKey;
+  if (!key) {
+    return;
+  }
+
+  if (!(key in filters)) {
+    filters[key] = '';
+  }
+
+  input.addEventListener('input', () => {
+    filters[key] = normalizeText(input.value).trim();
+    updateFilterUIState();
+    renderItems();
+  });
+});
+
+if (clearFiltersButton) {
+  clearFiltersButton.addEventListener('click', () => {
+    let hasChanges = false;
+
+    filterInputs.forEach((input) => {
+      if (input.value !== '') {
+        hasChanges = true;
+      }
+      input.value = '';
+    });
+
+    Object.keys(filters).forEach((key) => {
+      if (filters[key]) {
+        hasChanges = true;
+      }
+      filters[key] = '';
+    });
+
+    updateFilterUIState();
+    if (hasChanges) {
+      renderItems();
+    }
+  });
+}
+
+if (exportButton) {
+  exportButton.addEventListener('click', async () => {
+    try {
+      exportButton.disabled = true;
+      showStatus('Generando exportaciÃ³n...', 'is-info');
+      const result = await window.api.exportItems();
+
+      if (result?.canceled) {
+        showStatus('ExportaciÃ³n cancelada.', 'is-warning');
+      } else {
+        const message = result?.filePath
+          ? `Inventario exportado en ${result.filePath}`
+          : 'Inventario exportado correctamente.';
+        showStatus(message, 'is-success');
+      }
+    } catch (error) {
+      console.error('Failed to export items', error);
+      showStatus('No se pudo exportar el inventario.', 'is-danger');
+    } finally {
+      exportButton.disabled = false;
+    }
+  });
+}
+
+sortButtons.forEach((button) => {
+  const sortKey = button.dataset.sortKey;
+  if (!sortKey) {
+    return;
+  }
+
+  button.addEventListener('click', () => {
+    if (currentSort.key === sortKey) {
+      if (currentSort.direction === 'asc') {
+        currentSort.direction = 'desc';
+      } else if (currentSort.direction === 'desc') {
+        currentSort = {
+          key: null,
+          direction: 'asc',
+        };
+      } else {
+        currentSort.direction = 'asc';
+      }
+    } else {
+      currentSort = {
+        key: sortKey,
+        direction: 'asc',
+      };
+    }
+
+    renderItems();
+  });
+});
 
 function updateUndoUI() {
   if (!undoDeleteButton) {
@@ -116,6 +340,8 @@ function findCachedItem(serial, rowNumber) {
 }
 
 updateUndoUI();
+updateFilterUIState();
+updateSortIndicators();
 
 function toggleSelection(serial, rowNumber, shouldSelect, row) {
   const key = getSelectionKey(serial, rowNumber);
@@ -147,17 +373,16 @@ function toggleSelection(serial, rowNumber, shouldSelect, row) {
 
 if (selectAllCheckbox) {
   selectAllCheckbox.addEventListener('change', () => {
-    if (cachedItems.length === 0) {
+    if (displayedItems.length === 0) {
       selectAllCheckbox.checked = false;
       selectAllCheckbox.indeterminate = false;
       return;
     }
 
     if (selectAllCheckbox.checked) {
-      selectedItems.clear();
-      cachedItems.forEach((item) => {
-        const serial = item && item.NoSerie != null ? String(item.NoSerie).trim() : '';
-        const rowNumber = Number.isInteger(item?._rowNumber) ? item._rowNumber : null;
+      displayedItems.forEach((item) => {
+        const serial = getItemSerial(item);
+        const rowNumber = getItemRowNumber(item);
         const key = getSelectionKey(serial, rowNumber);
         if (key) {
           selectedItems.set(key, {
@@ -167,7 +392,14 @@ if (selectAllCheckbox) {
         }
       });
     } else {
-      selectedItems.clear();
+      displayedItems.forEach((item) => {
+        const serial = getItemSerial(item);
+        const rowNumber = getItemRowNumber(item);
+        const key = getSelectionKey(serial, rowNumber);
+        if (key) {
+          selectedItems.delete(key);
+        }
+      });
     }
 
     const rows = tableBody.querySelectorAll('tr');
@@ -193,7 +425,7 @@ if (deleteSelectedButton) {
       return;
     }
 
-    const confirmation = window.confirm('¿Quieres eliminar los ítems seleccionados?');
+    const confirmation = window.confirm('Â¿Quieres eliminar los Ã­tems seleccionados?');
     if (!confirmation) {
       return;
     }
@@ -213,7 +445,7 @@ if (deleteSelectedButton) {
             .filter(Boolean);
 
       if (deletedCount > 0) {
-        showStatus(`Se eliminaron ${deletedCount} ítems.`, 'is-success');
+        showStatus(`Se eliminaron ${deletedCount} Ã­tems.`, 'is-success');
         selectedItems.clear();
         highlightRowBySerial(null);
         if (selectAllCheckbox) {
@@ -224,13 +456,13 @@ if (deleteSelectedButton) {
         updateUndoUI();
         await refreshItems();
       } else {
-        showStatus('No se eliminó ningún ítem.', 'is-warning');
+        showStatus('No se eliminÃ³ ningÃºn Ã­tem.', 'is-warning');
         lastDeletedItems = [];
         updateUndoUI();
       }
     } catch (error) {
       console.error('Failed to delete selected items', error);
-      showStatus('No se pudieron eliminar los ítems seleccionados.', 'is-danger');
+      showStatus('No se pudieron eliminar los Ã­tems seleccionados.', 'is-danger');
       lastDeletedItems = [];
       updateUndoUI();
     } finally {
@@ -251,14 +483,14 @@ if (undoDeleteButton) {
       const restoredCount = Number(result?.restored ?? 0);
 
       if (restoredCount > 0) {
-        showStatus(`Se restauraron ${restoredCount} ítems.`, 'is-success');
+        showStatus(`Se restauraron ${restoredCount} Ã­tems.`, 'is-success');
         await refreshItems();
       } else {
-        showStatus('No se restauró ningún ítem.', 'is-warning');
+        showStatus('No se restaurÃ³ ningÃºn Ã­tem.', 'is-warning');
       }
     } catch (error) {
       console.error('Failed to restore deleted items', error);
-      showStatus('No se pudieron restaurar los ítems.', 'is-danger');
+      showStatus('No se pudieron restaurar los Ã­tems.', 'is-danger');
     } finally {
       selectedItems.clear();
       updateSelectionUI();
@@ -600,10 +832,11 @@ function createItemRow(item) {
 }
 
 function renderItems(items) {
-  const normalizedItems = Array.isArray(items) ? items : [];
-  cachedItems = normalizedItems;
-  tableBody.innerHTML = '';
+  if (Array.isArray(items)) {
+    cachedItems = items;
+  }
 
+  const normalizedItems = Array.isArray(cachedItems) ? cachedItems : [];
   const availableKeys = new Set();
 
   normalizedItems.forEach((item) => {
@@ -621,39 +854,54 @@ function renderItems(items) {
     }
   });
 
+  displayedItems = applyFiltersAndSort(normalizedItems);
+  tableBody.innerHTML = '';
+
   if (normalizedItems.length === 0) {
     highlightRowBySerial(null);
     selectedItems.clear();
+    displayedItems = [];
     updateSelectionUI();
 
-    tableContainer.classList.remove('is-hidden');
-    emptyState.classList.add('is-hidden');
+    tableContainer.classList.add('is-hidden');
+    if (emptyState) {
+      emptyState.textContent = 'AÃºn no hay Ã­tems guardados.';
+      emptyState.classList.remove('is-hidden');
+    }
 
+    updateUndoUI();
+    updateSortIndicators();
+    updateFilterUIState();
+    return;
+  }
+
+  tableContainer.classList.remove('is-hidden');
+  if (emptyState) {
+    emptyState.classList.add('is-hidden');
+  }
+
+  if (displayedItems.length === 0) {
+    highlightRowBySerial(null);
     const columnCount = FIELD_KEYS.length + 1;
     tableBody.innerHTML = `
       <tr class="table-empty-row">
         <td colspan="${columnCount}" class="has-text-centered has-text-grey">
-          Aun no hay items guardados.
+          No hay Ã­tems que coincidan con los filtros actuales.
         </td>
       </tr>
     `;
-
-    updateUndoUI();
-    return;
+  } else {
+    const fragment = document.createDocumentFragment();
+    displayedItems.forEach((item) => {
+      fragment.appendChild(createItemRow(item));
+    });
+    tableBody.appendChild(fragment);
   }
-
-  emptyState.classList.add('is-hidden');
-  tableContainer.classList.remove('is-hidden');
-
-  const fragment = document.createDocumentFragment();
-  normalizedItems.forEach((item) => {
-    fragment.appendChild(createItemRow(item));
-  });
-
-  tableBody.appendChild(fragment);
 
   updateSelectionUI();
   updateUndoUI();
+  updateSortIndicators();
+  updateFilterUIState();
 }
 
 async function refreshItems() {
@@ -754,6 +1002,7 @@ form.addEventListener('submit', async (event) => {
 
 setActiveTab('tab-form');
 refreshItems();
+
 
 
 

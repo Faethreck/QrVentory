@@ -219,13 +219,87 @@
                 A&uacute;n no hay &iacute;tems guardados.
               </div>
 
-              <div id="items-table-container" class="table-container is-hidden">
-                <div class="table-actions">
-                  <button type="button" class="button is-danger is-light" id="delete-selected" disabled>
-                    Eliminar seleccionados
-                  </button>
-                  <button type="button" class="button is-warning is-light is-hidden" id="undo-delete" disabled>
-                    Deshacer última eliminación
+          <div id="items-table-container" class="table-container is-hidden">
+            <div id="table-filters" class="table-filters box">
+              <div class="filter-grid">
+                <div class="field">
+                  <label class="label is-size-7 has-text-weight-semibold" for="filter-nombre">Nombre</label>
+                  <div class="control">
+                    <input
+                      class="input is-small"
+                      id="filter-nombre"
+                      data-filter-key="Nombre"
+                      type="text"
+                      placeholder="Buscar por nombre"
+                    />
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="label is-size-7 has-text-weight-semibold" for="filter-categoria">Categor&iacute;a</label>
+                  <div class="control">
+                    <input
+                      class="input is-small"
+                      id="filter-categoria"
+                      data-filter-key="Categoria"
+                      type="text"
+                      placeholder="Buscar por categor&iacute;a"
+                    />
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="label is-size-7 has-text-weight-semibold" for="filter-ubicacion">Ubicaci&oacute;n</label>
+                  <div class="control">
+                    <input
+                      class="input is-small"
+                      id="filter-ubicacion"
+                      data-filter-key="Ubicacion"
+                      type="text"
+                      placeholder="Buscar por ubicaci&oacute;n"
+                    />
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="label is-size-7 has-text-weight-semibold" for="filter-responsable">Responsable</label>
+                  <div class="control">
+                    <input
+                      class="input is-small"
+                      id="filter-responsable"
+                      data-filter-key="Responsable"
+                      type="text"
+                      placeholder="Buscar por responsable"
+                    />
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="label is-size-7 has-text-weight-semibold" for="filter-estado">Estado</label>
+                  <div class="control">
+                    <input
+                      class="input is-small"
+                      id="filter-estado"
+                      data-filter-key="Estado"
+                      type="text"
+                      placeholder="Buscar por estado"
+                    />
+                  </div>
+                </div>
+                <div class="field filter-clear">
+                  <label class="label is-size-7 has-text-weight-semibold" for="clear-filters">Acciones</label>
+                  <div class="control">
+                    <button type="button" class="button is-small is-light" id="clear-filters">Limpiar filtros</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-actions">
+              <button type="button" class="button is-info is-light" id="export-items">
+                Exportar inventario
+              </button>
+              <button type="button" class="button is-danger is-light" id="delete-selected" disabled>
+                Eliminar seleccionados
+              </button>
+              <button type="button" class="button is-warning is-light is-hidden" id="undo-delete" disabled>
+                Deshacer última eliminación
                   </button>
                 </div>
 
@@ -235,19 +309,71 @@
                       <th class="has-text-centered selection-column">
                         <input type="checkbox" id="select-all-rows" aria-label="Seleccionar todos los &iacute;tems" />
                       </th>
-                      <th>Nombre</th>
-                      <th>NoSerie</th>
-                      <th>Categor&iacute;a</th>
-                      <th>Cantidad</th>
-                      <th>Fecha de ingreso</th>
-                      <th>Proveedor</th>
-                      <th>RUT</th>
-                      <th>NoFactura</th>
-                      <th>Estado</th>
-                      <th>Responsable</th>
-                      <th>Ubicaci&oacute;n</th>
-                      <th>Notas</th>
-                      <th>Imagen</th>
+                      <th>
+                        <button type="button" class="table-sort-button" data-sort-key="Nombre">
+                          Nombre <span class="sort-indicator" aria-hidden="true"></span>
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" class="table-sort-button" data-sort-key="NoSerie">
+                          NoSerie <span class="sort-indicator" aria-hidden="true"></span>
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" class="table-sort-button" data-sort-key="Categoria">
+                          Categor&iacute;a <span class="sort-indicator" aria-hidden="true"></span>
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" class="table-sort-button" data-sort-key="Cantidad">
+                          Cantidad <span class="sort-indicator" aria-hidden="true"></span>
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" class="table-sort-button" data-sort-key="Fecha Ingreso">
+                          Fecha de ingreso <span class="sort-indicator" aria-hidden="true"></span>
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" class="table-sort-button" data-sort-key="Proveedor">
+                          Proveedor <span class="sort-indicator" aria-hidden="true"></span>
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" class="table-sort-button" data-sort-key="Rut">
+                          RUT <span class="sort-indicator" aria-hidden="true"></span>
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" class="table-sort-button" data-sort-key="NoFactura">
+                          NoFactura <span class="sort-indicator" aria-hidden="true"></span>
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" class="table-sort-button" data-sort-key="Estado">
+                          Estado <span class="sort-indicator" aria-hidden="true"></span>
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" class="table-sort-button" data-sort-key="Responsable">
+                          Responsable <span class="sort-indicator" aria-hidden="true"></span>
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" class="table-sort-button" data-sort-key="Ubicacion">
+                          Ubicaci&oacute;n <span class="sort-indicator" aria-hidden="true"></span>
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" class="table-sort-button" data-sort-key="Notas">
+                          Notas <span class="sort-indicator" aria-hidden="true"></span>
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" class="table-sort-button" data-sort-key="Imagen">
+                          Imagen <span class="sort-indicator" aria-hidden="true"></span>
+                        </button>
+                      </th>
                     </tr>
                   </thead>
                   <tbody id="items-table-body"></tbody>
@@ -286,8 +412,6 @@
     <script type="module" src="/src/renderer.js"></script>
   </body>
 </html>
-
-
 
 
 

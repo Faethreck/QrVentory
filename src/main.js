@@ -4,7 +4,7 @@
 // Runs in Electron's "main" process. Handles window creation,
 // IPC (inter-process communication), dialogs, and backend logic.
 
-import { app, BrowserWindow, ipcMain, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeImage, dialog } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import started from 'electron-squirrel-startup'; // Manages Windows installer/uninstaller shortcuts
@@ -109,6 +109,39 @@ ipcMain.handle('items:delete', async (_e, serials) => {
 
 ipcMain.handle('items:restore', async (_e, items) => {
   return utils.restoreItems(excelFilePath, items);
+});
+
+ipcMain.handle('items:export', async () => {
+  const browserWindow = BrowserWindow.getFocusedWindow();
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[:]/g, '-')
+    .split('.')[0];
+  const defaultPath = path.join(app.getPath('documents'), `QrVentory-${timestamp}.xlsx`);
+
+  try {
+    const { canceled, filePath } = await dialog.showSaveDialog(browserWindow ?? undefined, {
+      title: 'Exportar inventario',
+      defaultPath,
+      buttonLabel: 'Guardar',
+      filters: [
+        {
+          name: 'Libro de Excel',
+          extensions: ['xlsx'],
+        },
+      ],
+    });
+
+    if (canceled || !filePath) {
+      return { canceled: true };
+    }
+
+    await utils.exportItemsToFile(excelFilePath, filePath);
+    return { canceled: false, filePath };
+  } catch (error) {
+    console.error('Failed to export items', error);
+    throw error;
+  }
 });
 
 

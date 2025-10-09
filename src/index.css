@@ -311,6 +311,32 @@ body {
   background: transparent;
   border-collapse: separate;
   border-spacing: 0;
+  table-layout: fixed;
+  font-size: 0.9rem;
+}
+
+#items-table-container thead th,
+#items-table-container tbody td {
+  padding: 0.5rem 0.65rem;
+  word-break: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#items-table-container tbody td:hover {
+  overflow: visible;
+  white-space: normal;
+  z-index: 1;
+  position: relative;
+}
+
+#items-table-container thead th .table-sort-button {
+  font-size: 0.9rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: space-between;
 }
 
 .table-actions {
@@ -318,6 +344,64 @@ body {
   justify-content: flex-end;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+}
+
+.table-filters {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background-color: #eef3f8;
+  border: 1px solid rgba(112, 137, 147, 0.18);
+}
+
+.filter-grid {
+  display: grid;
+  gap: 0.75rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+}
+
+.filter-clear .button {
+  width: 100%;
+}
+
+.table-sort-button {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+}
+
+.table-sort-button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.table-sort-button .sort-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.9rem;
+  height: 0.9rem;
+  font-size: 0.75rem;
+  opacity: 0.45;
+}
+
+.table-sort-button[data-sort-active='true'] .sort-indicator {
+  opacity: 1;
+}
+
+.table-sort-button[data-sort-direction='asc'] .sort-indicator::before {
+  content: '▲';
+}
+
+.table-sort-button[data-sort-direction='desc'] .sort-indicator::before {
+  content: '▼';
 }
 
 .selection-column {
