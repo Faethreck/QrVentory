@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld('api', {
   generateQr: (item) => ipcRenderer.invoke('item:qr', item),
   deleteItems: (serials) => ipcRenderer.invoke('items:delete', serials),
   restoreItems: (items) => ipcRenderer.invoke('items:restore', items),
+  updateItem: (payload) => ipcRenderer.invoke('item:update', payload),
   exportItems: () => ipcRenderer.invoke('items:export'),
 });

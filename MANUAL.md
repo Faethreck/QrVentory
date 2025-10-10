@@ -55,6 +55,7 @@ Al abrir QrVentory por primera vez:
 - Cada fila muestra los datos del ítem y, si existe, una miniatura de la imagen cargada.
 - El primer encabezado incluye un checkbox para seleccionar todas las filas de la tabla. También puedes seleccionar ítems individualmente.
 - Al hacer clic sobre una fila, se abrirá su detalle en un modal y la fila quedará resaltada para que la ubiques fácilmente.
+- En la parte superior encontrarás el botón **Exportar inventario**, que genera una copia en Excel y te permite escoger dónde guardarla.
 
 ### 6.2 Eliminar y deshacer
 
@@ -62,10 +63,18 @@ Al abrir QrVentory por primera vez:
 - Haz clic en **Eliminar seleccionados**.
 - Confirma la pregunta “¿Quieres eliminar los ítems seleccionados?” para proceder.
 - Si la operación se completa, se mostrará un mensaje de éxito y los registros desaparecerán de la tabla.
-- Para revertir la última eliminación, utiliza **Deshacer última eliminación**:
-  - El botón solo está activo cuando hay elementos recientes por restaurar.
-  - Tras restaurar, verás un mensaje confirmando cuántos ítems volvieron a la lista.
-  - Ten en cuenta que este historial se borra al cerrar la aplicación o cuando realizas otra eliminación sin deshacer.
+- Para revertir la última modificación, usa el botón **Deshacer**:
+  - Siempre está visible y se activa cuando hay una eliminación o edición reciente.
+  - Si la acción anterior fue eliminar, el inventario restaurará los ítems borrados.
+  - Si la acción anterior fue editar un registro, se recuperarán los valores previos.
+- Ten en cuenta que el historial de deshacer se borra al cerrar la aplicación o cuando realizas una nueva acción sin revertir la anterior.
+
+### 6.3 Editar un ítem
+
+- Abre el detalle del registro desde la pestaña “Ítems guardados” y haz clic en **Editar ítem**.
+- El formulario “Nuevo ítem” cambiará a modo edición, precargando la información existente (incluida la imagen si existe).
+- Realiza los ajustes necesarios y pulsa **Guardar cambios** para actualizar el inventario. El código QR se regenerará automáticamente con los nuevos datos.
+- Si cambias de opinión, puedes limpiar el formulario o navegar a otra pestaña; al guardar sin modificaciones no se crearán duplicados.
 
 ## 7. Ver el detalle y el código QR
 
@@ -97,4 +106,3 @@ Al abrir QrVentory por primera vez:
 3. Documentar preguntas frecuentes según la retroalimentación de usuarios y soporte.
 
 > Mantén este borrador actualizado registrando fecha y responsable cada vez que hagas cambios significativos.
-

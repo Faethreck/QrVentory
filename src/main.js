@@ -111,6 +111,10 @@ ipcMain.handle('items:restore', async (_e, items) => {
   return utils.restoreItems(excelFilePath, items);
 });
 
+ipcMain.handle('item:update', async (_e, payload) => {
+  return utils.updateItem(excelFilePath, payload);
+});
+
 ipcMain.handle('items:export', async () => {
   const browserWindow = BrowserWindow.getFocusedWindow();
   const timestamp = new Date()

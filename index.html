@@ -298,9 +298,9 @@
               <button type="button" class="button is-danger is-light" id="delete-selected" disabled>
                 Eliminar seleccionados
               </button>
-              <button type="button" class="button is-warning is-light is-hidden" id="undo-delete" disabled>
-                Deshacer última eliminación
-                  </button>
+              <button type="button" class="button is-warning is-light" id="undo-delete" disabled>
+                Deshacer
+              </button>
                 </div>
 
                 <table class="table is-fullwidth is-striped is-hoverable">
@@ -403,7 +403,8 @@
             </div>
           </div>
         </section>
-        <footer class="modal-card-foot is-justify-content-flex-end">
+        <footer class="modal-card-foot is-justify-content-space-between">
+          <button class="button is-info is-light" id="edit-item">Editar ítem</button>
           <button class="button" data-close-modal>Cerrar</button>
         </footer>
       </div>
@@ -412,9 +413,6 @@
     <script type="module" src="/src/renderer.js"></script>
   </body>
 </html>
-
-
-
 
 
 

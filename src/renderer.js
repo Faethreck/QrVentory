@@ -22,25 +22,41 @@ const deleteSelectedButton = document.getElementById('delete-selected');
 const selectAllCheckbox = document.getElementById('select-all-rows');
 const undoDeleteButton = document.getElementById('undo-delete');
 const exportButton = document.getElementById('export-items');
+const editItemButton = document.getElementById('edit-item');
 const filterInputs = document.querySelectorAll('[data-filter-key]');
 const clearFiltersButton = document.getElementById('clear-filters');
 const sortButtons = document.querySelectorAll('.table-sort-button');
+const formSubmitButton = form ? form.querySelector('button[type="submit"]') : null;
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 let imageDataUrl = '';
 
 const fieldElements = Array.from(document.querySelectorAll('[data-field]'));
 const FIELD_KEYS = fieldElements.map((element) => element.dataset.field);
+const fieldElementMap = fieldElements.reduce((accumulator, element) => {
+  const key = element.dataset.field;
+  if (key) {
+    accumulator[key] = element;
+  }
+  return accumulator;
+}, {});
+
 let cachedItems = [];
 let displayedItems = [];
+let currentDetailItem = null;
+let editingState = null;
 const selectedItems = new Map();
 const filters = {};
 const DETAIL_HIGHLIGHT_CLASS = 'is-detail-highlight';
-let lastDeletedItems = [];
+let lastAction = null;
 let currentSort = {
   key: null,
   direction: 'asc',
 };
+
+if (editItemButton) {
+  editItemButton.disabled = true;
+}
 
 const DATA_ROW_MIN = 2;
 const normalizeSerial = (value) => (value == null ? '' : String(value).trim());
@@ -74,6 +90,131 @@ function normalizeText(value) {
   } catch {
     return text;
   }
+}
+
+function cloneItem(item) {
+  return item ? JSON.parse(JSON.stringify(item)) : null;
+}
+
+function setFormMode(mode) {
+  if (!form) {
+    return;
+  }
+
+  if (mode === 'edit') {
+    form.dataset.mode = 'edit';
+    if (formSubmitButton) {
+      formSubmitButton.textContent = 'Guardar cambios';
+    }
+  } else {
+    delete form.dataset.mode;
+    delete form.dataset.serial;
+    delete form.dataset.rowNumber;
+    if (formSubmitButton) {
+      formSubmitButton.textContent = 'Guardar ítem';
+    }
+  }
+}
+
+function stopEditing() {
+  editingState = null;
+  setFormMode('create');
+}
+
+function populateFormWithItem(item) {
+  FIELD_KEYS.forEach((key) => {
+    const element = fieldElementMap[key];
+    if (!element || element.type === 'file') {
+      return;
+    }
+
+    let value = item?.[key] ?? '';
+    if (element.type === 'date' && value) {
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) {
+        value = parsed.toISOString().slice(0, 10);
+      }
+    }
+
+    if (element.type === 'number') {
+      element.value = value === '' ? '' : Number(value);
+    } else {
+      element.value = value;
+    }
+  });
+
+  if (serialInput) {
+    serialInput.value = item?.NoSerie ?? '';
+  }
+}
+
+function setImagePreviewFromDataUrl(dataUrl, label) {
+  if (!imagePreview || !imagePreviewContainer || !imageNameDisplay) {
+    return;
+  }
+
+  imageInput.value = '';
+
+  if (!dataUrl) {
+    resetImageInput();
+    return;
+  }
+
+  imageDataUrl = dataUrl;
+  imagePreview.src = dataUrl;
+  imagePreviewContainer.classList.remove('is-hidden');
+  imageNameDisplay.textContent = label || 'Imagen cargada';
+}
+
+function startEditingItem(item) {
+  if (!form || !item) {
+    return;
+  }
+
+  const source =
+    findCachedItem(item.NoSerie, item._rowNumber) || item;
+
+  const serial = getItemSerial(source);
+  const rowNumber = getItemRowNumber(source);
+  const originalItem = cloneItem(source) || {};
+  if (serial) {
+    originalItem.NoSerie = serial;
+  }
+  if (rowNumber != null) {
+    originalItem._rowNumber = rowNumber;
+  }
+
+  editingState = {
+    serial,
+    rowNumber,
+    originalItem,
+  };
+
+  form.dataset.serial = editingState.serial || '';
+  form.dataset.rowNumber =
+    editingState.rowNumber != null ? String(editingState.rowNumber) : '';
+  setFormMode('edit');
+  populateFormWithItem(source);
+
+  if (source.Imagen) {
+    setImagePreviewFromDataUrl(source.Imagen, 'Imagen actual');
+  } else {
+    resetImageInput();
+  }
+
+  if (qrContainer) {
+    qrContainer.classList.add('is-hidden');
+  }
+  if (qrSection) {
+    qrSection.classList.add('is-hidden');
+  }
+
+  closeDetailModal();
+  setActiveTab('tab-form');
+  showStatus(
+    'Editando ítem seleccionado. Actualiza los campos y guarda los cambios.',
+    'is-info',
+  );
 }
 
 function hasActiveFilters() {
@@ -274,6 +415,15 @@ if (exportButton) {
   });
 }
 
+if (editItemButton) {
+  editItemButton.addEventListener('click', () => {
+    if (!currentDetailItem) {
+      return;
+    }
+    startEditingItem(currentDetailItem);
+  });
+}
+
 sortButtons.forEach((button) => {
   const sortKey = button.dataset.sortKey;
   if (!sortKey) {
@@ -308,9 +458,8 @@ function updateUndoUI() {
     return;
   }
 
-  const hasUndo = Array.isArray(lastDeletedItems) && lastDeletedItems.length > 0;
+  const hasUndo = lastAction != null;
   undoDeleteButton.disabled = !hasUndo;
-  undoDeleteButton.classList.toggle('is-hidden', !hasUndo);
 }
 
 function stripInternalFields(item) {
@@ -342,6 +491,7 @@ function findCachedItem(serial, rowNumber) {
 updateUndoUI();
 updateFilterUIState();
 updateSortIndicators();
+setFormMode('create');
 
 function toggleSelection(serial, rowNumber, shouldSelect, row) {
   const key = getSelectionKey(serial, rowNumber);
@@ -452,18 +602,21 @@ if (deleteSelectedButton) {
           selectAllCheckbox.checked = false;
           selectAllCheckbox.indeterminate = false;
         }
-        lastDeletedItems = deletedItemsSnapshot;
+        lastAction = {
+          type: 'delete',
+          items: deletedItemsSnapshot.map((entry) => ({ ...entry })),
+        };
         updateUndoUI();
         await refreshItems();
       } else {
         showStatus('No se eliminó ningún ítem.', 'is-warning');
-        lastDeletedItems = [];
+        lastAction = null;
         updateUndoUI();
       }
     } catch (error) {
       console.error('Failed to delete selected items', error);
       showStatus('No se pudieron eliminar los ítems seleccionados.', 'is-danger');
-      lastDeletedItems = [];
+      lastAction = null;
       updateUndoUI();
     } finally {
       updateSelectionUI();
@@ -473,28 +626,66 @@ if (deleteSelectedButton) {
 
 if (undoDeleteButton) {
   undoDeleteButton.addEventListener('click', async () => {
-    if (!Array.isArray(lastDeletedItems) || lastDeletedItems.length === 0) {
+    if (!lastAction) {
       return;
     }
 
     try {
       undoDeleteButton.disabled = true;
-      const result = await window.api.restoreItems(lastDeletedItems);
-      const restoredCount = Number(result?.restored ?? 0);
 
-      if (restoredCount > 0) {
-        showStatus(`Se restauraron ${restoredCount} ítems.`, 'is-success');
-        await refreshItems();
+      if (lastAction.type === 'delete') {
+        const items = Array.isArray(lastAction.items) ? lastAction.items : [];
+        if (items.length === 0) {
+          showStatus('No hay acciones para deshacer.', 'is-warning');
+        } else {
+          const result = await window.api.restoreItems(items);
+          const restoredCount = Number(result?.restored ?? 0);
+
+          if (restoredCount > 0) {
+            showStatus(`Se restauraron ${restoredCount} ítems.`, 'is-success');
+            await refreshItems();
+          } else {
+            showStatus('No se restauró ningún ítem.', 'is-warning');
+          }
+        }
+      } else if (lastAction.type === 'edit') {
+        const previousItem = lastAction.before;
+        if (!previousItem) {
+          showStatus('No hay cambios para deshacer.', 'is-warning');
+        } else {
+          const targetSerial = getItemSerial(previousItem);
+          const targetRowNumber = getItemRowNumber(previousItem);
+          const result = await window.api.updateItem({
+            target: {
+              serial: targetSerial,
+              rowNumber: targetRowNumber,
+            },
+            item: previousItem,
+          });
+
+          const updatedCount = Number(result?.updated ?? 0);
+          if (updatedCount > 0) {
+            showStatus('Se revirtieron los cambios del ítem.', 'is-success');
+            await refreshItems();
+            const revertedItem =
+              findCachedItem(targetSerial, targetRowNumber) ||
+              result?.item ||
+              previousItem;
+            await openDetailModal(revertedItem, result?.qrDataUrl);
+          } else {
+            showStatus('No se pudo revertir el ítem.', 'is-warning');
+          }
+        }
       } else {
-        showStatus('No se restauró ningún ítem.', 'is-warning');
+        showStatus('No hay acciones para deshacer.', 'is-warning');
       }
     } catch (error) {
-      console.error('Failed to restore deleted items', error);
-      showStatus('No se pudieron restaurar los ítems.', 'is-danger');
+      console.error('Failed to undo last action', error);
+      showStatus('No se pudo deshacer la acción.', 'is-danger');
     } finally {
+      lastAction = null;
       selectedItems.clear();
       updateSelectionUI();
-      lastDeletedItems = [];
       updateUndoUI();
     }
   });
@@ -681,6 +872,7 @@ function collectItemFromForm() {
 
 function resetForm() {
   form.reset();
+  stopEditing();
   resetImageInput();
   if (serialInput) {
     serialInput.value = '';
@@ -732,15 +924,23 @@ async function openDetailModal(item, cachedQr) {
     return;
   }
 
-  highlightRowBySerial(item.NoSerie);
-  populateDetailFields(item);
-  detailTitle.textContent = item.Nombre || 'Detalle del item';
+  const resolvedItem =
+    findCachedItem(item?.NoSerie, item?._rowNumber) || item;
+
+  currentDetailItem = resolvedItem;
+  if (editItemButton) {
+    editItemButton.disabled = false;
+  }
+
+  highlightRowBySerial(resolvedItem.NoSerie);
+  populateDetailFields(resolvedItem);
+  detailTitle.textContent = resolvedItem.Nombre || 'Detalle del item';
   detailModal.classList.add('is-active');
 
   let qrDataUrl = cachedQr;
   if (!qrDataUrl) {
     try {
-      qrDataUrl = await window.api.generateQr(item);
+      qrDataUrl = await window.api.generateQr(resolvedItem);
     } catch (error) {
       console.error('Failed to generate QR for item', error);
       showStatus('No se pudo generar el codigo QR para este item.', 'is-warning');
@@ -752,6 +952,8 @@ async function openDetailModal(item, cachedQr) {
   } else {
     detailQr.removeAttribute('src');
   }
+
+  return resolvedItem;
 }
 
 function closeDetailModal() {
@@ -760,6 +962,10 @@ function closeDetailModal() {
   }
   detailModal.classList.remove('is-active');
   highlightRowBySerial(null);
+  currentDetailItem = null;
+  if (editItemButton) {
+    editItemButton.disabled = true;
+  }
 }
 
 modalCloseControls.forEach((control) => {
@@ -981,6 +1187,7 @@ form.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const item = collectItemFromForm();
+  const isEditMode = form.dataset.mode === 'edit';
 
   if (!item.Nombre) {
     showStatus('El campo "Nombre" es obligatorio.', 'is-warning');
@@ -989,19 +1196,86 @@ form.addEventListener('submit', async (event) => {
 
   try {
     hideStatus();
-    const qrDataUrl = await window.api.saveItem(item);
-    showStatus('Item guardado correctamente.', 'is-success');
-    qrImage.src = qrDataUrl;
-    qrContainer.classList.remove('is-hidden');
-    if (qrSection) {
-      qrSection.classList.remove('is-hidden');
+    if (isEditMode) {
+      const targetSerial =
+        form.dataset.serial || editingState?.serial || item.NoSerie || '';
+      const targetRowNumber = normalizeRowNumber(
+        form.dataset.rowNumber ?? editingState?.rowNumber,
+      );
+
+      const previousItem =
+        cloneItem(editingState?.originalItem) ||
+        cloneItem(findCachedItem(targetSerial, targetRowNumber));
+      if (previousItem) {
+        previousItem.NoSerie = getItemSerial(previousItem) || targetSerial;
+        if (targetRowNumber != null && previousItem._rowNumber == null) {
+          previousItem._rowNumber = targetRowNumber;
+        }
+      }
+
+      item.NoSerie = targetSerial || item.NoSerie;
+
+      const result = await window.api.updateItem({
+        target: {
+          serial: targetSerial,
+          rowNumber: targetRowNumber,
+        },
+        item,
+      });
+
+      const updatedCount = Number(result?.updated ?? 0);
+
+      if (updatedCount > 0) {
+        showStatus('Ítem actualizado correctamente.', 'is-success');
+        await refreshItems();
+        const refreshedItem =
+          findCachedItem(targetSerial, targetRowNumber) ||
+          result?.item || {
+            ...item,
+            NoSerie: targetSerial,
+            _rowNumber: targetRowNumber ?? undefined,
+          };
+
+        if (previousItem) {
+          lastAction = {
+            type: 'edit',
+            before: cloneItem(previousItem),
+            after: cloneItem(refreshedItem),
+          };
+        } else {
+          lastAction = null;
+        }
+        updateUndoUI();
+
+        resetForm();
+        await openDetailModal(refreshedItem, result?.qrDataUrl);
+      } else {
+        showStatus('No se encontró el ítem a actualizar.', 'is-warning');
+        lastAction = null;
+        updateUndoUI();
+      }
+    } else {
+      const qrDataUrl = await window.api.saveItem(item);
+      showStatus('Item guardado correctamente.', 'is-success');
+      qrImage.src = qrDataUrl;
+      qrContainer.classList.remove('is-hidden');
+      if (qrSection) {
+        qrSection.classList.remove('is-hidden');
+      }
+      resetForm();
+      await refreshItems();
+      await openDetailModal(item, qrDataUrl);
     }
-    resetForm();
-    await refreshItems();
-    await openDetailModal(item, qrDataUrl);
   } catch (error) {
-    console.error('Failed to save item', error);
-    showStatus('Ocurrio un error al guardar el item.', 'is-danger');
+    if (isEditMode) {
+      console.error('Failed to update item', error);
+      showStatus('No se pudo actualizar el ítem.', 'is-danger');
+      lastAction = null;
+      updateUndoUI();
+    } else {
+      console.error('Failed to save item', error);
+      showStatus('Ocurrio un error al guardar el item.', 'is-danger');
+    }
   }
 });
 

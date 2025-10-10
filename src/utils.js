@@ -396,6 +396,73 @@ function createBorder() {
   };
 }
 
+export async function updateItem(filePath, payload = {}) {
+  if (!payload || typeof payload !== 'object') {
+    return { updated: 0 };
+  }
+
+  const target = payload.target ?? {};
+  const targetSerial = normalizeSerial(target.serial);
+  const targetRowNumber = normalizeRowNumber(target.rowNumber);
+  const updatesSource = payload.item ?? payload.values ?? {};
+
+  let item = normalizeItem(updatesSource);
+  if (!item.NoSerie && targetSerial) {
+    item.NoSerie = targetSerial;
+  }
+
+  const { workbook, sheet } = await ensureWorkbook(filePath);
+  if (!sheet) {
+    return { updated: 0 };
+  }
+
+  let rowIndex = null;
+
+  if (targetRowNumber != null) {
+    const row = sheet.getRow(targetRowNumber);
+    if (row && row.hasValues) {
+      rowIndex = targetRowNumber;
+    }
+  }
+
+  if (rowIndex == null && targetSerial) {
+    for (let rowNumber = DATA_START_ROW; rowNumber <= sheet.rowCount; rowNumber += 1) {
+      const cellValue = sheet.getCell(rowNumber, SERIAL_COLUMN_INDEX).value;
+      const serial = extractSerialFromValue(cellValue);
+      if (serial === targetSerial) {
+        rowIndex = rowNumber;
+        break;
+      }
+    }
+  }
+
+  if (rowIndex == null) {
+    return { updated: 0 };
+  }
+
+  const rowValues = itemToRow(item);
+  const row = sheet.getRow(rowIndex);
+  rowValues.forEach((value, columnIndex) => {
+    row.getCell(columnIndex + 1).value = value;
+  });
+  row.commit();
+
+  await workbook.xlsx.writeFile(filePath);
+
+  item = {
+    ...normalizeItem(item),
+    _rowNumber: rowIndex,
+  };
+
+  const qrDataUrl = await generateQrForItem(item);
+
+  return {
+    updated: 1,
+    item,
+    qrDataUrl,
+  };
+}
+
 export async function deleteItemsBySerial(filePath, entries = []) {
   if (!Array.isArray(entries) || entries.length === 0) {
     return { deleted: 0, items: [] };
