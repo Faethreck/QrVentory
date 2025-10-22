@@ -156,6 +156,49 @@ ipcMain.handle('items:export', async () => {
   }
 });
 
+ipcMain.handle('items:print-labels', async (_event, entries) => {
+  try {
+    const browserWindow = BrowserWindow.getFocusedWindow();
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:]/g, '-')
+      .split('.')[0];
+    const defaultPath = path.join(
+      app.getPath('documents'),
+      `QrVentory-etiquetas-${timestamp}.pdf`,
+    );
+
+    const { canceled, filePath } = await dialog.showSaveDialog(browserWindow ?? undefined, {
+      title: 'Guardar etiquetas',
+      defaultPath,
+      buttonLabel: 'Guardar',
+      filters: [
+        {
+          name: 'Documento PDF',
+          extensions: ['pdf'],
+        },
+      ],
+    });
+
+    if (canceled || !filePath) {
+      return { canceled: true, reason: 'user-cancelled' };
+    }
+
+    const result = await utils.generateLabelsPdf(excelFilePath, entries, filePath);
+
+    return {
+      canceled: false,
+      filePath,
+      printed: Number(result?.printed ?? 0),
+      totalRequested: Number(result?.totalRequested ?? 0),
+      missing: Number(result?.missing ?? 0),
+    };
+  } catch (error) {
+    console.error('Failed to generate label PDF', error);
+    throw error;
+  }
+});
+
 
 
 

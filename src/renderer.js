@@ -26,6 +26,7 @@ const imagePreview = document.getElementById('image-preview');
 const imagePreviewContainer = document.getElementById('image-preview-container');
 const deleteSelectedButton = document.getElementById('delete-selected');
 const decommissionButton = document.getElementById('decommission-selected');
+const printLabelsButton = document.getElementById('print-labels');
 const selectAllCheckbox = document.getElementById('select-all-rows');
 const undoDeleteButton = document.getElementById('undo-delete');
 const exportButton = document.getElementById('export-items');
@@ -491,6 +492,9 @@ function updateSelectionUI() {
   if (decommissionButton) {
     decommissionButton.disabled = !hasSelection;
   }
+  if (printLabelsButton) {
+    printLabelsButton.disabled = !hasSelection;
+  }
 
   if (selectAllCheckbox) {
     if (totalItems === 0) {
@@ -822,6 +826,26 @@ if (selectAllCheckbox) {
   });
 }
 
+function getSelectedEntries() {
+  return Array.from(selectedItems.values())
+    .map((entry) => {
+      if (!entry) {
+        return null;
+      }
+      if (typeof entry === 'string') {
+        const serial = normalizeSerial(entry);
+        return serial ? { serial, rowNumber: null } : null;
+      }
+      const serial = normalizeSerial(entry.serial);
+      const rowNumber = normalizeRowNumber(entry.rowNumber);
+      if (!serial && rowNumber == null) {
+        return null;
+      }
+      return { serial, rowNumber };
+    })
+    .filter(Boolean);
+}
+
 if (deleteSelectedButton) {
   deleteSelectedButton.addEventListener('click', async () => {
     if (selectedItems.size === 0) {
@@ -885,6 +909,53 @@ if (decommissionButton) {
     const entries = Array.from(selectedItems.values());
     showStatus('Marcando items como dados de baja...', 'is-info');
     await handleDecommissionAction(entries);
+  });
+}
+
+if (printLabelsButton) {
+  printLabelsButton.addEventListener('click', async () => {
+    const entries = getSelectedEntries();
+    if (entries.length === 0) {
+      showStatus('Selecciona al menos un item para imprimir etiquetas.', 'is-warning');
+      return;
+    }
+
+    try {
+      printLabelsButton.disabled = true;
+      showStatus('Generando etiquetas en PDF...', 'is-info');
+      const result = await window.api.printLabels(entries);
+      if (result?.canceled) {
+        if (result.reason && result.reason !== 'user-cancelled') {
+          showStatus('No se generaron etiquetas.', 'is-warning');
+        }
+        return;
+      }
+
+      const printedCount = Number(result?.printed ?? 0);
+      const totalRequested = Number(result?.totalRequested ?? printedCount);
+      const missingCount = Number(result?.missing ?? 0);
+
+      if (printedCount > 0) {
+        let message =
+          printedCount === 1
+            ? 'Se generó un PDF con 1 etiqueta.'
+            : `Se generó un PDF con ${printedCount} etiquetas.`;
+        if (missingCount > 0 || totalRequested > printedCount) {
+          const notFound = missingCount > 0 ? missingCount : totalRequested - printedCount;
+          message += ` No se pudieron incluir ${notFound} item(s).`;
+          showStatus(message, 'is-warning');
+        } else {
+          showStatus(message, 'is-success');
+        }
+      } else {
+        showStatus('No se generaron etiquetas para los items seleccionados.', 'is-warning');
+      }
+    } catch (error) {
+      console.error('Failed to generate label sheet', error);
+      showStatus('No se pudieron generar las etiquetas.', 'is-danger');
+    } finally {
+      updateSelectionUI();
+    }
   });
 }
 

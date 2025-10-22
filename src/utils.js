@@ -1,10 +1,11 @@
 // src/utils.js
 // Utility functions for Excel file handling and QR code generation
 
-import { access } from 'node:fs/promises';
+import { access, writeFile as fsWriteFile } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import ExcelJS from 'exceljs';
 import QRCode from 'qrcode';
+import { PDFDocument } from 'pdf-lib';
 
 const EMPTY_PIXEL_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
 
@@ -78,6 +79,19 @@ const NIVEL_EDUCATIVO_OPTIONS = new Map([
   ['educacion basica', 'Educacion Basica'],
   ['educacion media', 'Educacion Media'],
 ]);
+
+const mmToPoints = (mm) => (mm * 72) / 25.4;
+const LABEL_PAGE_WIDTH_PT = mmToPoints(216);
+const LABEL_PAGE_HEIGHT_PT = mmToPoints(279);
+const LABEL_WIDTH_PT = mmToPoints(101);
+const LABEL_HEIGHT_PT = mmToPoints(51);
+const LABEL_COLUMNS = 2;
+const LABEL_ROWS = 5;
+const LABELS_PER_PAGE = LABEL_COLUMNS * LABEL_ROWS;
+const LABEL_MARGIN_X_PT = (LABEL_PAGE_WIDTH_PT - LABEL_COLUMNS * LABEL_WIDTH_PT) / 2;
+const LABEL_MARGIN_Y_PT = (LABEL_PAGE_HEIGHT_PT - LABEL_ROWS * LABEL_HEIGHT_PT) / 2;
+const QR_SIZE_RATIO = 0.6;
+const QR_SIZE_PT = Math.min(LABEL_WIDTH_PT, LABEL_HEIGHT_PT) * QR_SIZE_RATIO;
 
 function normalizeOptionValue(raw, map) {
   if (raw == null) {
@@ -254,6 +268,29 @@ function normalizeRowNumber(value) {
   return Number.isInteger(numeric) && numeric >= DATA_START_ROW ? numeric : null;
 }
 
+function normalizeSelectionEntries(entries) {
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+  return entries
+    .map((entry) => {
+      if (!entry) {
+        return null;
+      }
+      if (typeof entry === 'string') {
+        const serial = normalizeSerial(entry);
+        return serial ? { serial, rowNumber: null } : null;
+      }
+      const serial = normalizeSerial(entry.serial);
+      const rowNumber = normalizeRowNumber(entry.rowNumber);
+      if (!serial && rowNumber == null) {
+        return null;
+      }
+      return { serial, rowNumber };
+    })
+    .filter(Boolean);
+}
+
 function extractSerialFromValue(value) {
   if (value == null) {
     return '';
@@ -396,6 +433,111 @@ export async function exportItemsToFile(sourcePath, destinationPath) {
 
   await workbook.xlsx.writeFile(destinationPath);
   return { exported: items.length };
+}
+
+export async function generateLabelsPdf(sourcePath, rawEntries = [], destinationPath) {
+  if (!destinationPath) {
+    throw new Error('destinationPath is required');
+  }
+
+  const normalizedEntries = normalizeSelectionEntries(rawEntries);
+  const totalRequested = normalizedEntries.length;
+
+  if (totalRequested === 0) {
+    return { printed: 0, totalRequested: 0, missing: 0 };
+  }
+
+  const allItems = await getAllItems(sourcePath);
+  if (allItems.length === 0) {
+    return { printed: 0, totalRequested, missing: totalRequested };
+  }
+
+  const serialMap = new Map();
+  const rowMap = new Map();
+  allItems.forEach((item) => {
+    const serial = normalizeSerial(item.NoSerie);
+    const rowNumber = normalizeRowNumber(item._rowNumber);
+    if (serial && !serialMap.has(serial)) {
+      serialMap.set(serial, item);
+    }
+    if (rowNumber != null && !rowMap.has(rowNumber)) {
+      rowMap.set(rowNumber, item);
+    }
+  });
+
+  const matchedItems = [];
+  const missingEntries = [];
+  const seenKeys = new Set();
+
+  normalizedEntries.forEach((entry) => {
+    let candidate = null;
+    if (entry.serial && serialMap.has(entry.serial)) {
+      candidate = serialMap.get(entry.serial);
+    }
+    if (!candidate && entry.rowNumber != null && rowMap.has(entry.rowNumber)) {
+      candidate = rowMap.get(entry.rowNumber);
+    }
+    if (!candidate) {
+      missingEntries.push(entry);
+      return;
+    }
+
+    const candidateSerial = normalizeSerial(candidate.NoSerie);
+    const candidateRow = normalizeRowNumber(candidate._rowNumber);
+    const key = `${candidateSerial}|${candidateRow ?? ''}`;
+    if (seenKeys.has(key)) {
+      return;
+    }
+    seenKeys.add(key);
+    matchedItems.push(candidate);
+  });
+
+  if (matchedItems.length === 0) {
+    return { printed: 0, totalRequested, missing: totalRequested };
+  }
+
+  const pdfDoc = await PDFDocument.create();
+  const pageSize = [LABEL_PAGE_WIDTH_PT, LABEL_PAGE_HEIGHT_PT];
+
+  const qrPayloads = [];
+  for (const item of matchedItems) {
+    const qrDataUrl = await generateQrForItem(item);
+    qrPayloads.push({ item, qrDataUrl });
+  }
+
+  let page = null;
+
+  for (let index = 0; index < qrPayloads.length; index += 1) {
+    if (index % LABELS_PER_PAGE === 0) {
+      page = pdfDoc.addPage(pageSize);
+    }
+
+    const slotIndex = index % LABELS_PER_PAGE;
+    const column = slotIndex % LABEL_COLUMNS;
+    const row = Math.floor(slotIndex / LABEL_COLUMNS);
+    const labelX = LABEL_MARGIN_X_PT + column * LABEL_WIDTH_PT;
+    const labelY = LABEL_PAGE_HEIGHT_PT - LABEL_MARGIN_Y_PT - (row + 1) * LABEL_HEIGHT_PT;
+
+    const qrImage = await pdfDoc.embedPng(qrPayloads[index].qrDataUrl);
+    const qrX = labelX + (LABEL_WIDTH_PT - QR_SIZE_PT) / 2;
+    const qrY = labelY + (LABEL_HEIGHT_PT - QR_SIZE_PT) / 2;
+
+    page.drawImage(qrImage, {
+      x: qrX,
+      y: qrY,
+      width: QR_SIZE_PT,
+      height: QR_SIZE_PT,
+    });
+  }
+
+  const pdfBytes = await pdfDoc.save();
+  await fsWriteFile(destinationPath, pdfBytes);
+
+  return {
+    printed: matchedItems.length,
+    totalRequested,
+    missing: missingEntries.length,
+  };
 }
 
 function buildExportRow(rawItem) {
