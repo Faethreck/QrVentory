@@ -1,65 +1,391 @@
-﻿<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>QrVentory</title>
-    <link rel="icon" type="image/png" href="./assets/icons/app-icon.png">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css" />
-    <link rel="stylesheet" href="/src/index.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
+    />
+    <link rel="stylesheet" href="./src/index.css" />
   </head>
   <body>
-    <section class="hero is-primary">
+    <section class="hero hero-compact">
       <div class="hero-body">
-        <p class="title">QrVentory</p>
-        <p class="subtitle">Inventario con c&oacute;digos QR</p>
+        <div class="container">
+          <p class="title">QrVentory</p>
+          <p class="subtitle">
+            Gestiona y controla el inventario escolar desde un solo lugar
+          </p>
+        </div>
       </div>
     </section>
 
     <section class="section">
       <div class="container">
+        <div
+          id="status-notification"
+          class="notification is-hidden"
+          role="status"
+        ></div>
+
         <div class="card">
           <header class="card-header">
-            <p class="card-header-title">Gesti&oacute;n de inventario</p>
+            <p class="card-header-title">Gestion de inventario</p>
           </header>
-
           <div class="card-content">
-            <div id="status-notification" class="notification is-hidden" role="status"></div>
-
-            <div class="tabs is-toggle is-fullwidth" role="tablist">
+            <div
+              class="tabs is-toggle main-tabs"
+              role="tablist"
+              aria-label="Secciones principales"
+            >
               <ul>
-                <li class="is-active" data-tab-target="tab-form"><a>Nuevo &iacute;tem</a></li>
-                <li data-tab-target="tab-items"><a>&Iacute;tems guardados</a></li>
+                <li class="is-active">
+                  <a href="#" data-main-tab="register">Registrar items</a>
+                </li>
+                <li>
+                  <a href="#" data-main-tab="saved">Items guardados</a>
+                </li>
               </ul>
             </div>
 
-            <div id="tab-form" class="tab-panel tab-panel--form is-active" role="tabpanel" aria-label="Formulario">
-              <form id="item-form" class="form-grid">
-                <div class="columns is-variable is-5 form-layout">
-                  <div class="column is-two-thirds">
-                    <section class="form-section">
-                      <h3 class="form-section__title">Informaci&oacute;n b&aacute;sica</h3>
-                      <div class="columns is-multiline is-variable is-3">
+            <div class="main-tab-panels">
+              <div
+                id="panel-register"
+                class="main-tab-panel is-active"
+                data-main-panel="register"
+                aria-hidden="false"
+              >
+                <div
+                  class="tabs is-toggle form-mode-tabs"
+                  role="tablist"
+                  aria-label="Registro de items"
+                >
+                  <ul>
+                    <li class="is-active">
+                      <a href="#" data-form-mode-trigger="single">Registro individual</a>
+                    </li>
+                    <li>
+                      <a href="#" data-form-mode-trigger="batch">Lote de items</a>
+                    </li>
+                  </ul>
+                </div>
+
+                <div class="form-mode-panels">
+                  <div
+                    id="form-panel-single"
+                    class="form-mode-panel is-active"
+                    data-form-mode-panel="single"
+                    aria-hidden="false"
+                  >
+                    <form id="item-form">
+                      <div class="columns is-multiline">
                         <div class="column is-half">
                           <div class="field">
                             <label class="label" for="input-nombre">Nombre</label>
                             <div class="control">
-                              <input class="input" id="input-nombre" data-field="Nombre" type="text" placeholder="Ej. Notebook Lenovo" required />
+                              <input
+                                id="input-nombre"
+                                class="input"
+                                type="text"
+                                required
+                                placeholder="Ej: Computador sala 5"
+                                data-field="Nombre"
+                              />
                             </div>
                           </div>
                         </div>
                         <div class="column is-half">
                           <div class="field">
-                            <label class="label" for="input-noserie">NoSerie</label>
+                            <label class="label" for="input-noserie">Numero de serie</label>
                             <div class="control">
                               <input
-                                class="input"
                                 id="input-noserie"
-                                data-field="NoSerie"
+                                class="input"
                                 type="text"
-                                placeholder="Se generar&aacute; autom&aacute;ticamente"
-                                readonly
-                                aria-readonly="true"
+                                placeholder="Se genera automaticamente si se deja vacio"
+                                data-field="NoSerie"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="input-categoria">Categoria</label>
+                            <div class="control">
+                              <input
+                                id="input-categoria"
+                                class="input"
+                                type="text"
+                                placeholder="Ej: Tecnologia"
+                                data-field="Categoria"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="input-tipo">Tipo</label>
+                            <div class="control select is-fullwidth">
+                              <select id="input-tipo" data-field="Tipo">
+                                <option value="Tangible">Tangible</option>
+                                <option value="Fungible">Fungible</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="input-subvencion">Subvencion</label>
+                            <div class="control select is-fullwidth">
+                              <select id="input-subvencion" data-field="Subvencion">
+                                <option value="Aulas Conectadas">Aulas Conectadas</option>
+                                <option value="SEP">SEP</option>
+                                <option value="General">General</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="input-nivel-educativo">Nivel educativo</label>
+                            <div class="control select is-fullwidth">
+                              <select
+                                id="input-nivel-educativo"
+                                data-field="Nivel Educativo"
+                              >
+                                <option value="Educacion Basica">Educacion Basica</option>
+                                <option value="Educacion Media">Educacion Media</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="input-cantidad">Cantidad</label>
+                            <div class="control">
+                              <input
+                                id="input-cantidad"
+                                class="input"
+                                type="number"
+                                min="1"
+                                value="1"
+                                data-field="Cantidad"
+                              />
+                            </div>
+                            <p class="help">
+                              Cantidad por item. Ej: paquete de 500 hojas o set de 12 plumones.
+                            </p>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="input-fecha-ingreso">Fecha de ingreso</label>
+                            <div class="control">
+                              <input
+                                id="input-fecha-ingreso"
+                                class="input"
+                                type="date"
+                                data-field="Fecha Ingreso"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="input-proveedor">Proveedor</label>
+                            <div class="control">
+                              <input
+                                id="input-proveedor"
+                                class="input"
+                                type="text"
+                                placeholder="Proveedor o tienda"
+                                data-field="Proveedor"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="input-rut">RUT proveedor</label>
+                            <div class="control">
+                              <input
+                                id="input-rut"
+                                class="input"
+                                type="text"
+                                placeholder="12345678-9"
+                                data-field="Rut"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="input-factura">Numero de factura</label>
+                            <div class="control">
+                              <input
+                                id="input-factura"
+                                class="input"
+                                type="text"
+                                data-field="NoFactura"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="input-estado">Estado</label>
+                            <div class="control select is-fullwidth">
+                              <select id="input-estado" data-field="Estado">
+                                <option value="Operativo">Operativo</option>
+                                <option value="En mantenimiento">En mantenimiento</option>
+                                <option value="Dado de baja">Dado de baja</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="input-responsable">Responsable</label>
+                            <div class="control">
+                              <input
+                                id="input-responsable"
+                                class="input"
+                                type="text"
+                                placeholder="Nombre del encargado"
+                                data-field="Responsable"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="input-ubicacion">Ubicacion</label>
+                            <div class="control">
+                              <input
+                                id="input-ubicacion"
+                                class="input"
+                                type="text"
+                                placeholder="Ej: Biblioteca"
+                                data-field="Ubicacion"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-full">
+                          <div class="field">
+                            <label class="label" for="input-notas">Notas</label>
+                            <div class="control">
+                              <textarea
+                                id="input-notas"
+                                class="textarea"
+                                rows="3"
+                                placeholder="Observaciones o informacion extra"
+                                data-field="Notas"
+                              ></textarea>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="input-imagen">Imagen del item</label>
+                            <div class="file has-name is-fullwidth">
+                              <label class="file-label">
+                                <input
+                                  id="input-imagen"
+                                  class="file-input"
+                                  type="file"
+                                  accept="image/*"
+                                  data-field="Imagen"
+                                />
+                                <span class="file-cta">
+                                  <span class="file-icon">
+                                    <i class="fas fa-upload"></i>
+                                  </span>
+                                  <span class="file-label"> Seleccionar imagen </span>
+                                </span>
+                                <span id="input-imagen-name" class="file-name">
+                                  No se ha seleccionado una imagen
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-half">
+                          <div
+                            id="image-preview-container"
+                            class="image-preview is-hidden"
+                          >
+                            <img id="image-preview" alt="Vista previa imagen" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="buttons is-right">
+                        <button class="button is-light" type="reset">Limpiar</button>
+                        <button class="button is-primary" type="submit">
+                          Guardar item
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  <div
+                    id="form-panel-batch"
+                    class="form-mode-panel"
+                    data-form-mode-panel="batch"
+                    aria-hidden="true"
+                  >
+                    <form id="batch-form">
+                      <div class="columns is-multiline">
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="batch-count">Cantidad de items a crear</label>
+                            <div class="control">
+                              <input
+                                id="batch-count"
+                                class="input"
+                                type="number"
+                                min="1"
+                                value="2"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="batch-serial-prefix">Prefijo para serie</label>
+                            <div class="control">
+                              <input
+                                id="batch-serial-prefix"
+                                class="input"
+                                type="text"
+                                placeholder="Ej: SILLAS-2024"
+                              />
+                            </div>
+                            <p class="help">
+                              Cada item recibira un numero incremental usando este prefijo.
+                            </p>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="batch-start-index">Numero inicial</label>
+                            <div class="control">
+                              <input
+                                id="batch-start-index"
+                                class="input"
+                                type="number"
+                                min="1"
+                                value="1"
                               />
                             </div>
                           </div>
@@ -67,355 +393,534 @@
 
                         <div class="column is-half">
                           <div class="field">
-                            <label class="label" for="input-categoria">Categor&iacute;a</label>
+                            <label class="label" for="batch-nombre">Nombre base</label>
                             <div class="control">
-                              <input class="input" id="input-categoria" data-field="Categoria" type="text" placeholder="Ej. Computadores" />
+                              <input
+                                id="batch-nombre"
+                                class="input"
+                                type="text"
+                                required
+                                placeholder="Ej: Silla de sala"
+                                data-batch-field="Nombre"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="batch-categoria">Categoria</label>
+                            <div class="control">
+                              <input
+                                id="batch-categoria"
+                                class="input"
+                                type="text"
+                                data-batch-field="Categoria"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="batch-tipo">Tipo</label>
+                          <div class="control select is-fullwidth">
+                              <select id="batch-tipo" data-batch-field="Tipo">
+                                <option value="Tangible">Tangible</option>
+                                <option value="Fungible">Fungible</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="batch-subvencion">Subvencion</label>
+                            <div class="control select is-fullwidth">
+                              <select id="batch-subvencion" data-batch-field="Subvencion">
+                                <option value="Aulas Conectadas">Aulas Conectadas</option>
+                                <option value="SEP">SEP</option>
+                                <option value="General">General</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="batch-nivel-educativo">Nivel educativo</label>
+                            <div class="control select is-fullwidth">
+                              <select
+                                id="batch-nivel-educativo"
+                                data-batch-field="Nivel Educativo"
+                              >
+                                <option value="Educacion Basica">Educacion Basica</option>
+                                <option value="Educacion Media">Educacion Media</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="batch-cantidad">Cantidad por item</label>
+                            <div class="control">
+                              <input
+                                id="batch-cantidad"
+                                class="input"
+                                type="number"
+                                min="1"
+                                value="1"
+                                data-batch-field="Cantidad"
+                              />
+                            </div>
+                            <p class="help">
+                              Usa este valor para cajas, paquetes u otras unidades multiples.
+                            </p>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="batch-fecha-ingreso">Fecha de ingreso</label>
+                            <div class="control">
+                              <input
+                                id="batch-fecha-ingreso"
+                                class="input"
+                                type="date"
+                                data-batch-field="Fecha Ingreso"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="batch-estado">Estado</label>
+                            <div class="control select is-fullwidth">
+                              <select id="batch-estado" data-batch-field="Estado">
+                                <option value="Operativo">Operativo</option>
+                                <option value="En mantenimiento">En mantenimiento</option>
+                                <option value="Dado de baja">Dado de baja</option>
+                              </select>
                             </div>
                           </div>
                         </div>
 
                         <div class="column is-half">
                           <div class="field">
-                            <label class="label" for="input-cantidad">Cantidad</label>
+                            <label class="label" for="batch-proveedor">Proveedor</label>
                             <div class="control">
-                              <input class="input" id="input-cantidad" data-field="Cantidad" type="number" min="0" step="1" />
+                              <input
+                                id="batch-proveedor"
+                                class="input"
+                                type="text"
+                                data-batch-field="Proveedor"
+                              />
                             </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-quarter">
+                          <div class="field">
+                            <label class="label" for="batch-rut">RUT proveedor</label>
+                            <div class="control">
+                              <input
+                                id="batch-rut"
+                                class="input"
+                                type="text"
+                                data-batch-field="Rut"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-quarter">
+                          <div class="field">
+                            <label class="label" for="batch-factura">Numero de factura</label>
+                            <div class="control">
+                              <input
+                                id="batch-factura"
+                                class="input"
+                                type="text"
+                                data-batch-field="NoFactura"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-one-half">
+                          <div class="field">
+                            <label class="label" for="batch-responsable">Responsable</label>
+                            <div class="control">
+                              <input
+                                id="batch-responsable"
+                                class="input"
+                                type="text"
+                                data-batch-field="Responsable"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-half">
+                          <div class="field">
+                            <label class="label" for="batch-ubicacion">Ubicacion</label>
+                            <div class="control">
+                              <input
+                                id="batch-ubicacion"
+                                class="input"
+                                type="text"
+                                data-batch-field="Ubicacion"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-full">
+                          <div class="field">
+                            <label class="label" for="batch-notas">Notas</label>
+                            <div class="control">
+                              <textarea
+                                id="batch-notas"
+                                class="textarea"
+                                rows="3"
+                                data-batch-field="Notas"
+                              ></textarea>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="batch-input-imagen">Imagen para todos los items</label>
+                            <div class="file has-name is-fullwidth">
+                              <label class="file-label">
+                                <input
+                                  id="batch-input-imagen"
+                                  class="file-input"
+                                  type="file"
+                                  accept="image/*"
+                                  data-batch-field="Imagen"
+                                />
+                                <span class="file-cta">
+                                  <span class="file-icon">
+                                    <i class="fas fa-upload"></i>
+                                  </span>
+                                  <span class="file-label"> Seleccionar imagen </span>
+                                </span>
+                                <span id="batch-input-imagen-name" class="file-name">
+                                  No se ha seleccionado una imagen
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-half">
+                          <div
+                            id="batch-image-preview-container"
+                            class="image-preview is-hidden"
+                          >
+                            <img id="batch-image-preview" alt="Vista previa imagen" />
                           </div>
                         </div>
                       </div>
-                    </section>
 
-                    <section class="form-section">
-                      <h3 class="form-section__title">Detalles de ingreso</h3>
-                      <div class="columns is-multiline is-variable is-3">
-                        <div class="column is-half">
-                          <div class="field">
-                            <label class="label" for="input-fecha-ingreso">Fecha de ingreso</label>
-                            <div class="control">
-                              <input class="input" id="input-fecha-ingreso" data-field="Fecha Ingreso" type="date" />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div class="column is-half">
-                          <div class="field">
-                            <label class="label" for="input-proveedor">Proveedor</label>
-                            <div class="control">
-                              <input class="input" id="input-proveedor" data-field="Proveedor" type="text" />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div class="column is-half">
-                          <div class="field">
-                            <label class="label" for="input-rut">RUT</label>
-                            <div class="control">
-                              <input class="input" id="input-rut" data-field="Rut" type="text" placeholder="Ej. 12.345.678-5" />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div class="column is-half">
-                          <div class="field">
-                            <label class="label" for="input-nofactura">NoFactura</label>
-                            <div class="control">
-                              <input class="input" id="input-nofactura" data-field="NoFactura" type="text" />
-                            </div>
-                          </div>
-                        </div>
+                      <div class="buttons is-right">
+                        <button class="button is-light" type="reset">Limpiar</button>
+                        <button class="button is-primary" type="submit">
+                          Crear lote
+                        </button>
                       </div>
-                    </section>
+                    </form>
                   </div>
+                </div>
 
-                  <div class="column is-one-third">
-                    <section class="form-section">
-                      <h3 class="form-section__title">Seguimiento</h3>
-                      <div class="field">
-                        <label class="label" for="input-estado">Estado</label>
-                        <div class="control">
-                          <div class="select is-fullwidth">
-                            <select id="input-estado" data-field="Estado">
-                              <option value="">Selecciona un estado</option>
-                              <option value="Disponible">Disponible</option>
-                              <option value="Asignado">Asignado</option>
-                              <option value="En mantenimiento">En mantenimiento</option>
-                              <option value="Baja">Baja</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div class="field">
-                        <label class="label" for="input-responsable">Responsable</label>
-                        <div class="control">
-                          <input class="input" id="input-responsable" data-field="Responsable" type="text" />
-                        </div>
-                      </div>
-
-                      <div class="field">
-                        <label class="label" for="input-ubicacion">Ubicaci&oacute;n</label>
-                        <div class="control">
-                          <input class="input" id="input-ubicacion" data-field="Ubicacion" type="text" />
-                        </div>
-                      </div>
-                    </section>
-
-                    <section class="form-section">
-                      <h3 class="form-section__title">Notas e imagen</h3>
-                      <div class="field">
-                        <label class="label" for="input-notas">Notas</label>
-                        <div class="control">
-                          <textarea class="textarea" id="input-notas" data-field="Notas" rows="3"></textarea>
-                        </div>
-                      </div>
-
-                      <div class="field">
-                        <label class="label" for="input-imagen">Imagen del &iacute;tem</label>
-                        <div class="file has-name is-fullwidth">
-                          <label class="file-label">
-                            <input
-                              class="file-input"
-                              id="input-imagen"
-                              data-field="Imagen"
-                              type="file"
-                              accept="image/*"
-                            />
-                            <span class="file-cta">
-                              <span class="file-label">Seleccionar imagen...</span>
-                            </span>
-                            <span class="file-name" id="input-imagen-name"
-                              >No se ha seleccionado una imagen</span
-                            >
-                          </label>
-                        </div>
-                      </div>
-
-                      <figure id="image-preview-container" class="image-preview box is-hidden mt-3">
-                        <img id="image-preview" alt="Previsualizaci&oacute;n del &iacute;tem" />
+                <div id="qr-section" class="columns is-multiline is-hidden">
+                  <div class="column is-half">
+                    <div id="qr-container" class="box">
+                      <h3 class="title is-5">Codigo QR generado</h3>
+                      <p class="subtitle is-6">
+                        Escanea este codigo para ver la informacion del item.
+                      </p>
+                      <figure class="image is-square">
+                        <img id="qr-image" alt="Codigo QR generado" />
                       </figure>
-                    </section>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div
+                id="panel-saved"
+                class="main-tab-panel"
+                data-main-panel="saved"
+                aria-hidden="true"
+              >
+                <div class="saved-panel-header">
+                  <div
+                    class="tabs is-toggle is-toggle-rounded inventory-scope-tabs"
+                    role="tablist"
+                  >
+                    <ul>
+                      <li class="is-active">
+                        <a href="#" data-scope-trigger="General">General</a>
+                      </li>
+                      <li>
+                        <a href="#" data-scope-trigger="Tangible">Tangible</a>
+                      </li>
+                      <li>
+                        <a href="#" data-scope-trigger="Fungible">Fungible</a>
+                      </li>
+                    </ul>
+                  </div>
+                  <div class="saved-panel-buttons buttons">
+                    <button id="export-items" class="button is-link is-light" type="button">
+                      Exportar
+                    </button>
+                    <button id="undo-delete" class="button is-light" type="button" disabled>
+                      Deshacer
+                    </button>
+                  </div>
+                </div>
 
-                    <section class="form-section form-section--qr is-hidden" id="qr-section">
-                      <h3 class="form-section__title">C&oacute;digo QR generado</h3>
-                      <div id="qr-container" class="box is-hidden has-text-centered">
-                        <figure class="image is-inline-block">
-                          <img id="qr-image" alt="C&oacute;digo QR generado" />
-                        </figure>
+                <div class="inventory-actions mb-4">
+                  <div class="buttons">
+                    <button
+                      id="decommission-selected"
+                      class="button is-warning"
+                      type="button"
+                      disabled
+                    >
+                      Dar de baja seleccionados
+                    </button>
+                    <button
+                      id="delete-selected"
+                      class="button is-danger is-light"
+                      type="button"
+                      disabled
+                    >
+                      Eliminar seleccionados
+                    </button>
+                  </div>
+                </div>
+
+                <div class="columns is-multiline inventory-filters">
+                  <div class="column is-one-quarter">
+                    <div class="field">
+                      <label class="label" for="filter-nombre">Buscar por nombre</label>
+                      <div class="control has-icons-left">
+                        <input
+                          id="filter-nombre"
+                          class="input"
+                          type="text"
+                          placeholder="Ej: proyector"
+                          data-filter-key="Nombre"
+                        />
+                        <span class="icon is-small is-left">
+                          <i class="fas fa-search"></i>
+                        </span>
                       </div>
-                    </section>
+                    </div>
+                  </div>
+                  <div class="column is-one-quarter">
+                    <div class="field">
+                      <label class="label" for="filter-categoria">Categoria</label>
+                      <div class="control">
+                        <input
+                          id="filter-categoria"
+                          class="input"
+                          type="text"
+                          data-filter-key="Categoria"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="column is-one-quarter">
+                    <div class="field">
+                      <label class="label" for="filter-subvencion">Subvencion</label>
+                      <div class="control">
+                        <input
+                          id="filter-subvencion"
+                          class="input"
+                          type="text"
+                          data-filter-key="Subvencion"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="column is-one-quarter">
+                    <div class="field">
+                      <label class="label" for="filter-nivel">Nivel educativo</label>
+                      <div class="control">
+                        <input
+                          id="filter-nivel"
+                          class="input"
+                          type="text"
+                          data-filter-key="Nivel Educativo"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="column is-one-quarter">
+                    <div class="field">
+                      <label class="label" for="filter-estado">Estado</label>
+                      <div class="control">
+                        <input
+                          id="filter-estado"
+                          class="input"
+                          type="text"
+                          data-filter-key="Estado"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="column is-one-quarter">
+                    <div class="field">
+                      <label class="label" for="filter-responsable">Responsable</label>
+                      <div class="control">
+                        <input
+                          id="filter-responsable"
+                          class="input"
+                          type="text"
+                          data-filter-key="Responsable"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="column is-one-quarter">
+                    <div class="field">
+                      <label class="label" for="filter-ubicacion">Ubicacion</label>
+                      <div class="control">
+                        <input
+                          id="filter-ubicacion"
+                          class="input"
+                          type="text"
+                          data-filter-key="Ubicacion"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="column is-one-quarter">
+                    <div class="field">
+                      <label class="label" for="filter-noserie">Numero de serie</label>
+                      <div class="control">
+                        <input
+                          id="filter-noserie"
+                          class="input"
+                          type="text"
+                          data-filter-key="NoSerie"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="column is-full">
+                    <button id="clear-filters" class="button is-light" type="button" disabled>
+                      Limpiar filtros
+                    </button>
                   </div>
                 </div>
 
-                <div class="field is-grouped is-justify-content-flex-end">
-                  <div class="control">
-                    <button type="submit" class="button is-primary">Guardar &iacute;tem</button>
-                  </div>
+                <div id="items-table-container" class="table-container is-hidden">
+                  <table class="table is-fullwidth is-hoverable">
+                    <thead>
+                      <tr>
+                        <th class="is-narrow">
+                          <label class="checkbox">
+                            <input id="select-all-rows" type="checkbox" />
+                          </label>
+                        </th>
+                        <th>
+                          <button class="table-sort-button" data-sort-key="NoSerie" type="button">
+                            Numero de serie
+                          </button>
+                        </th>
+                        <th>
+                          <button class="table-sort-button" data-sort-key="Nombre" type="button">
+                            Nombre
+                          </button>
+                        </th>
+                        <th>
+                          <button class="table-sort-button" data-sort-key="Categoria" type="button">
+                            Categoria
+                          </button>
+                        </th>
+                        <th>
+                          <button class="table-sort-button" data-sort-key="Tipo" type="button">
+                            Tipo
+                          </button>
+                        </th>
+                        <th>
+                          <button class="table-sort-button" data-sort-key="Subvencion" type="button">
+                            Subvencion
+                          </button>
+                        </th>
+                        <th>
+                          <button
+                            class="table-sort-button"
+                            data-sort-key="Nivel Educativo"
+                            type="button"
+                          >
+                            Nivel educativo
+                          </button>
+                        </th>
+                        <th>
+                          <button class="table-sort-button" data-sort-key="Cantidad" type="button">
+                            Cantidad
+                          </button>
+                        </th>
+                        <th>
+                          <button class="table-sort-button" data-sort-key="Estado" type="button">
+                            Estado
+                          </button>
+                        </th>
+                        <th>
+                          <button class="table-sort-button" data-sort-key="Ubicacion" type="button">
+                            Ubicacion
+                          </button>
+                        </th>
+                        <th class="is-narrow">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody id="items-table-body"></tbody>
+                  </table>
                 </div>
-              </form>
-            </div>
-
-            <div id="tab-items" class="tab-panel tab-panel--items" role="tabpanel" aria-label="Items guardados">
-              <div id="empty-state" class="notification is-light is-warning">
-                A&uacute;n no hay &iacute;tems guardados.
-              </div>
-
-          <div id="items-table-container" class="table-container is-hidden">
-            <div id="table-filters" class="table-filters box">
-              <div class="filter-grid">
-                <div class="field">
-                  <label class="label is-size-7 has-text-weight-semibold" for="filter-nombre">Nombre</label>
-                  <div class="control">
-                    <input
-                      class="input is-small"
-                      id="filter-nombre"
-                      data-filter-key="Nombre"
-                      type="text"
-                      placeholder="Buscar por nombre"
-                    />
-                  </div>
-                </div>
-                <div class="field">
-                  <label class="label is-size-7 has-text-weight-semibold" for="filter-categoria">Categor&iacute;a</label>
-                  <div class="control">
-                    <input
-                      class="input is-small"
-                      id="filter-categoria"
-                      data-filter-key="Categoria"
-                      type="text"
-                      placeholder="Buscar por categor&iacute;a"
-                    />
-                  </div>
-                </div>
-                <div class="field">
-                  <label class="label is-size-7 has-text-weight-semibold" for="filter-ubicacion">Ubicaci&oacute;n</label>
-                  <div class="control">
-                    <input
-                      class="input is-small"
-                      id="filter-ubicacion"
-                      data-filter-key="Ubicacion"
-                      type="text"
-                      placeholder="Buscar por ubicaci&oacute;n"
-                    />
-                  </div>
-                </div>
-                <div class="field">
-                  <label class="label is-size-7 has-text-weight-semibold" for="filter-responsable">Responsable</label>
-                  <div class="control">
-                    <input
-                      class="input is-small"
-                      id="filter-responsable"
-                      data-filter-key="Responsable"
-                      type="text"
-                      placeholder="Buscar por responsable"
-                    />
-                  </div>
-                </div>
-                <div class="field">
-                  <label class="label is-size-7 has-text-weight-semibold" for="filter-estado">Estado</label>
-                  <div class="control">
-                    <input
-                      class="input is-small"
-                      id="filter-estado"
-                      data-filter-key="Estado"
-                      type="text"
-                      placeholder="Buscar por estado"
-                    />
-                  </div>
-                </div>
-                <div class="field filter-clear">
-                  <label class="label is-size-7 has-text-weight-semibold" for="clear-filters">Acciones</label>
-                  <div class="control">
-                    <button type="button" class="button is-small is-light" id="clear-filters">Limpiar filtros</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="table-actions">
-              <button type="button" class="button is-info is-light" id="export-items">
-                Exportar inventario
-              </button>
-              <button type="button" class="button is-danger is-light" id="delete-selected" disabled>
-                Eliminar seleccionados
-              </button>
-              <button type="button" class="button is-warning is-light" id="undo-delete" disabled>
-                Deshacer
-              </button>
-                </div>
-
-                <table class="table is-fullwidth is-striped is-hoverable">
-                  <thead>
-                    <tr>
-                      <th class="has-text-centered selection-column">
-                        <input type="checkbox" id="select-all-rows" aria-label="Seleccionar todos los &iacute;tems" />
-                      </th>
-                      <th>
-                        <button type="button" class="table-sort-button" data-sort-key="Nombre">
-                          Nombre <span class="sort-indicator" aria-hidden="true"></span>
-                        </button>
-                      </th>
-                      <th>
-                        <button type="button" class="table-sort-button" data-sort-key="NoSerie">
-                          NoSerie <span class="sort-indicator" aria-hidden="true"></span>
-                        </button>
-                      </th>
-                      <th>
-                        <button type="button" class="table-sort-button" data-sort-key="Categoria">
-                          Categor&iacute;a <span class="sort-indicator" aria-hidden="true"></span>
-                        </button>
-                      </th>
-                      <th>
-                        <button type="button" class="table-sort-button" data-sort-key="Cantidad">
-                          Cantidad <span class="sort-indicator" aria-hidden="true"></span>
-                        </button>
-                      </th>
-                      <th>
-                        <button type="button" class="table-sort-button" data-sort-key="Fecha Ingreso">
-                          Fecha de ingreso <span class="sort-indicator" aria-hidden="true"></span>
-                        </button>
-                      </th>
-                      <th>
-                        <button type="button" class="table-sort-button" data-sort-key="Proveedor">
-                          Proveedor <span class="sort-indicator" aria-hidden="true"></span>
-                        </button>
-                      </th>
-                      <th>
-                        <button type="button" class="table-sort-button" data-sort-key="Rut">
-                          RUT <span class="sort-indicator" aria-hidden="true"></span>
-                        </button>
-                      </th>
-                      <th>
-                        <button type="button" class="table-sort-button" data-sort-key="NoFactura">
-                          NoFactura <span class="sort-indicator" aria-hidden="true"></span>
-                        </button>
-                      </th>
-                      <th>
-                        <button type="button" class="table-sort-button" data-sort-key="Estado">
-                          Estado <span class="sort-indicator" aria-hidden="true"></span>
-                        </button>
-                      </th>
-                      <th>
-                        <button type="button" class="table-sort-button" data-sort-key="Responsable">
-                          Responsable <span class="sort-indicator" aria-hidden="true"></span>
-                        </button>
-                      </th>
-                      <th>
-                        <button type="button" class="table-sort-button" data-sort-key="Ubicacion">
-                          Ubicaci&oacute;n <span class="sort-indicator" aria-hidden="true"></span>
-                        </button>
-                      </th>
-                      <th>
-                        <button type="button" class="table-sort-button" data-sort-key="Notas">
-                          Notas <span class="sort-indicator" aria-hidden="true"></span>
-                        </button>
-                      </th>
-                      <th>
-                        <button type="button" class="table-sort-button" data-sort-key="Imagen">
-                          Imagen <span class="sort-indicator" aria-hidden="true"></span>
-                        </button>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody id="items-table-body"></tbody>
-                </table>
+                <p id="empty-state" class="has-text-centered has-text-grey is-hidden">
+                  Aun no hay items guardados.
+                </p>
               </div>
             </div>
           </div>
         </div>
       </div>
     </section>
-
     <div id="item-detail-modal" class="modal">
       <div class="modal-background" data-close-modal></div>
       <div class="modal-card">
         <header class="modal-card-head">
-          <p class="modal-card-title" id="detail-title">Detalle del &iacute;tem</p>
-          <button class="delete" aria-label="Cerrar" data-close-modal></button>
+          <p id="detail-title" class="modal-card-title"></p>
+          <button class="delete" aria-label="close" data-close-modal></button>
         </header>
         <section class="modal-card-body">
-          <div class="columns is-multiline">
+          <div class="columns">
             <div class="column is-two-thirds">
               <dl id="detail-fields" class="detail-grid"></dl>
             </div>
             <div class="column is-one-third has-text-centered">
-              <h4 class="title is-6 mb-3 detail-qr-title">C&oacute;digo QR</h4>
-              <img id="detail-qr" alt="C&oacute;digo QR del &iacute;tem" />
+              <p class="detail-qr-title">Codigo QR</p>
+              <img id="detail-qr" alt="QR del item" />
+              <div class="buttons is-centered mt-4">
+                <button id="edit-item" class="button is-primary" type="button">
+                  Editar
+                </button>
+                <button id="close-detail" class="button" type="button" data-close-modal>
+                  Cerrar
+                </button>
+              </div>
             </div>
           </div>
         </section>
-        <footer class="modal-card-foot is-justify-content-space-between">
-          <button class="button is-info is-light" id="edit-item">Editar ítem</button>
-          <button class="button" data-close-modal>Cerrar</button>
-        </footer>
       </div>
     </div>
 
-    <script type="module" src="/src/renderer.js"></script>
+    <script
+      defer
+      src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"
+      integrity="sha512-fXPTB+jduCMsZ/HXXIQK5vCk1vZ1tcHTul3e8DqRL3OjaxAg/P6nxsVXniPdwWh05rq6ArtyTcwxHkYV+QJv3A=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script type="module" src="./src/renderer.js"></script>
   </body>
 </html>
-
-
-
-
-
-

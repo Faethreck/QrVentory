@@ -1,9 +1,15 @@
 const statusNotification = document.getElementById('status-notification');
-const form = document.getElementById('item-form');
+const singleForm = document.getElementById('item-form');
+const batchForm = document.getElementById('batch-form');
+const form = singleForm;
 const qrContainer = document.getElementById('qr-container');
 const qrSection = document.getElementById('qr-section');
 const qrImage = document.getElementById('qr-image');
-const tabTriggers = document.querySelectorAll('[data-tab-target]');
+const mainTabTriggers = document.querySelectorAll('[data-main-tab]');
+const mainTabPanels = document.querySelectorAll('[data-main-panel]');
+const formModeTriggers = document.querySelectorAll('[data-form-mode-trigger]');
+const formModePanels = document.querySelectorAll('[data-form-mode-panel]');
+const scopeTriggers = document.querySelectorAll('[data-scope-trigger]');
 const tableBody = document.getElementById('items-table-body');
 const tableContainer = document.getElementById('items-table-container');
 const emptyState = document.getElementById('empty-state');
@@ -19,6 +25,7 @@ const imageNameDisplay = document.getElementById('input-imagen-name');
 const imagePreview = document.getElementById('image-preview');
 const imagePreviewContainer = document.getElementById('image-preview-container');
 const deleteSelectedButton = document.getElementById('delete-selected');
+const decommissionButton = document.getElementById('decommission-selected');
 const selectAllCheckbox = document.getElementById('select-all-rows');
 const undoDeleteButton = document.getElementById('undo-delete');
 const exportButton = document.getElementById('export-items');
@@ -26,20 +33,78 @@ const editItemButton = document.getElementById('edit-item');
 const filterInputs = document.querySelectorAll('[data-filter-key]');
 const clearFiltersButton = document.getElementById('clear-filters');
 const sortButtons = document.querySelectorAll('.table-sort-button');
-const formSubmitButton = form ? form.querySelector('button[type="submit"]') : null;
+const formSubmitButton = singleForm ? singleForm.querySelector('button[type="submit"]') : null;
+const batchSubmitButton = batchForm ? batchForm.querySelector('button[type="submit"]') : null;
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
-let imageDataUrl = '';
-
-const fieldElements = Array.from(document.querySelectorAll('[data-field]'));
-const FIELD_KEYS = fieldElements.map((element) => element.dataset.field);
-const fieldElementMap = fieldElements.reduce((accumulator, element) => {
+const singleFieldElements = singleForm
+  ? Array.from(singleForm.querySelectorAll('[data-field]'))
+  : [];
+const singleFieldMap = singleFieldElements.reduce((accumulator, element) => {
   const key = element.dataset.field;
   if (key) {
     accumulator[key] = element;
   }
   return accumulator;
 }, {});
+const batchFieldElements = batchForm
+  ? Array.from(batchForm.querySelectorAll('[data-batch-field]'))
+  : [];
+const batchFieldMap = batchFieldElements.reduce((accumulator, element) => {
+  const key = element.dataset.batchField;
+  if (key) {
+    accumulator[key] = element;
+  }
+  return accumulator;
+}, {});
+const FORM_FIELD_KEYS = [
+  'Nombre',
+  'NoSerie',
+  'Categoria',
+  'Tipo',
+  'Subvencion',
+  'Nivel Educativo',
+  'Cantidad',
+  'Fecha Ingreso',
+  'Proveedor',
+  'Rut',
+  'NoFactura',
+  'Estado',
+  'Responsable',
+  'Ubicacion',
+  'Notas',
+  'Imagen',
+];
+const TABLE_FIELD_KEYS = [
+  'NoSerie',
+  'Nombre',
+  'Categoria',
+  'Tipo',
+  'Subvencion',
+  'Nivel Educativo',
+  'Cantidad',
+  'Estado',
+  'Ubicacion',
+];
+
+const singleImageContext = {
+  input: imageInput,
+  nameDisplay: imageNameDisplay,
+  preview: imagePreview,
+  container: imagePreviewContainer,
+  dataUrl: '',
+};
+const batchImageContext = {
+  input: document.getElementById('batch-input-imagen'),
+  nameDisplay: document.getElementById('batch-input-imagen-name'),
+  preview: document.getElementById('batch-image-preview'),
+  container: document.getElementById('batch-image-preview-container'),
+  dataUrl: '',
+};
+const batchCountInput = document.getElementById('batch-count');
+const batchSerialPrefixInput = document.getElementById('batch-serial-prefix');
+const batchStartIndexInput = document.getElementById('batch-start-index');
+const batchRutInput = document.getElementById('batch-rut');
 
 let cachedItems = [];
 let displayedItems = [];
@@ -53,6 +118,14 @@ let currentSort = {
   key: null,
   direction: 'asc',
 };
+const TANGIBLE_TYPE = 'Tangible';
+const FUNGIBLE_TYPE = 'Fungible';
+const SCOPE_GENERAL = 'General';
+const BAJA_STATE_LABEL = 'Dado de baja';
+const BAJA_BUTTON_LABEL = 'Dar de baja';
+let currentInventoryScope = SCOPE_GENERAL;
+let activeFormMode = 'single';
+let activeMainTab = 'register';
 
 if (editItemButton) {
   editItemButton.disabled = true;
@@ -66,6 +139,13 @@ const normalizeRowNumber = (value) => {
   }
   const numeric = Number(value);
   return Number.isInteger(numeric) && numeric >= DATA_ROW_MIN ? numeric : null;
+};
+const toPositiveInteger = (value, fallback = 1) => {
+  const numeric = Number(value);
+  if (Number.isInteger(numeric) && numeric > 0) {
+    return numeric;
+  }
+  return fallback;
 };
 const getItemSerial = (item) => (item ? normalizeSerial(item.NoSerie) : '');
 const getItemRowNumber = (item) => normalizeRowNumber(item?._rowNumber);
@@ -96,6 +176,35 @@ function cloneItem(item) {
   return item ? JSON.parse(JSON.stringify(item)) : null;
 }
 
+function setActiveMainTab(tab) {
+  const normalized = tab === 'saved' ? 'saved' : 'register';
+  activeMainTab = normalized;
+
+  mainTabTriggers.forEach((trigger) => {
+    const target = trigger.dataset.mainTab;
+    const listItem = trigger.closest('li');
+    const isActive = target === normalized;
+    if (listItem) {
+      listItem.classList.toggle('is-active', isActive);
+    }
+    trigger.setAttribute('aria-selected', String(isActive));
+  });
+
+  mainTabPanels.forEach((panel) => {
+    const panelKey = panel.dataset.mainPanel;
+    const isActive = panelKey === normalized;
+    panel.classList.toggle('is-active', isActive);
+    panel.setAttribute('aria-hidden', String(!isActive));
+  });
+
+  if (normalized === 'register') {
+    setActiveFormMode(activeFormMode);
+  } else {
+    updateSelectionUI();
+    updateSortIndicators();
+  }
+}
+
 function setFormMode(mode) {
   if (!form) {
     return;
@@ -121,9 +230,59 @@ function stopEditing() {
   setFormMode('create');
 }
 
+function setActiveFormMode(mode) {
+  const normalizedMode = mode === 'batch' ? 'batch' : 'single';
+  activeFormMode = normalizedMode;
+
+  formModeTriggers.forEach((trigger) => {
+    const triggerMode = trigger.dataset.formModeTrigger;
+    const isActive = triggerMode === normalizedMode;
+    trigger.parentElement?.classList.toggle('is-active', isActive);
+    trigger.setAttribute('aria-selected', String(isActive));
+  });
+
+  formModePanels.forEach((panel) => {
+    const panelMode = panel.dataset.formModePanel;
+    const isActive = panelMode === normalizedMode;
+    panel.classList.toggle('is-active', isActive);
+    panel.setAttribute('aria-hidden', String(!isActive));
+  });
+
+  const activePanel =
+    Array.from(formModePanels).find((panel) => panel.dataset.formModePanel === normalizedMode) ||
+    null;
+  if (activePanel) {
+    const focusTarget = activePanel.querySelector('input, select, textarea');
+    if (focusTarget) {
+      try {
+        focusTarget.focus({ preventScroll: true });
+      } catch {
+        focusTarget.focus();
+      }
+    }
+  }
+}
+
+function setInventoryScope(scope) {
+  const normalized =
+    scope === TANGIBLE_TYPE || scope === FUNGIBLE_TYPE ? scope : SCOPE_GENERAL;
+
+  currentInventoryScope = normalized;
+
+  scopeTriggers.forEach((trigger) => {
+    const triggerScope = trigger.dataset.scopeTrigger;
+    const isActive =
+      (triggerScope === SCOPE_GENERAL && normalized === SCOPE_GENERAL) ||
+      triggerScope === normalized;
+    trigger.parentElement?.classList.toggle('is-active', isActive);
+    trigger.setAttribute('aria-selected', String(isActive));
+  });
+
+  renderItems();
+}
+
 function populateFormWithItem(item) {
-  FIELD_KEYS.forEach((key) => {
-    const element = fieldElementMap[key];
+  Object.entries(singleFieldMap).forEach(([key, element]) => {
     if (!element || element.type === 'file') {
       return;
     }
@@ -146,24 +305,11 @@ function populateFormWithItem(item) {
   if (serialInput) {
     serialInput.value = item?.NoSerie ?? '';
   }
-}
-
-function setImagePreviewFromDataUrl(dataUrl, label) {
-  if (!imagePreview || !imagePreviewContainer || !imageNameDisplay) {
-    return;
+  if (item?.image) {
+    setImagePreviewFromDataUrl(singleImageContext, item.image, 'image actual');
+  } else {
+    resetImageInput(singleImageContext);
   }
-
-  imageInput.value = '';
-
-  if (!dataUrl) {
-    resetImageInput();
-    return;
-  }
-
-  imageDataUrl = dataUrl;
-  imagePreview.src = dataUrl;
-  imagePreviewContainer.classList.remove('is-hidden');
-  imageNameDisplay.textContent = label || 'Imagen cargada';
 }
 
 function startEditingItem(item) {
@@ -194,12 +340,11 @@ function startEditingItem(item) {
   form.dataset.rowNumber =
     editingState.rowNumber != null ? String(editingState.rowNumber) : '';
   setFormMode('edit');
+  setActiveMainTab('register');
+  setActiveFormMode('single');
   populateFormWithItem(source);
-
-  if (source.Imagen) {
-    setImagePreviewFromDataUrl(source.Imagen, 'Imagen actual');
-  } else {
-    resetImageInput();
+  if (!source.Imagen) {
+    resetImageInput(singleImageContext);
   }
 
   if (qrContainer) {
@@ -210,9 +355,9 @@ function startEditingItem(item) {
   }
 
   closeDetailModal();
-  setActiveTab('tab-form');
+  setActiveFormMode('single');
   showStatus(
-    'Editando ítem seleccionado. Actualiza los campos y guarda los cambios.',
+    'Editando item seleccionado. Actualiza los campos y guarda los cambios.',
     'is-info',
   );
 }
@@ -250,7 +395,7 @@ function getSortValue(item, key) {
     return Number.isNaN(numeric) ? Number.NEGATIVE_INFINITY : numeric;
   }
 
-  if (key === 'Imagen') {
+  if (key === 'image') {
     return value ? 1 : 0;
   }
 
@@ -299,8 +444,17 @@ function sortItems(items) {
   });
 }
 
+function filterByScope(items) {
+  if (currentInventoryScope === SCOPE_GENERAL) {
+    return items;
+  }
+  const targetType = currentInventoryScope.toLowerCase();
+  return items.filter((item) => (item?.Tipo || '').toLowerCase() === targetType);
+}
+
 function applyFiltersAndSort(items) {
-  const filtered = filterItems(items);
+  const scopedItems = filterByScope(items);
+  const filtered = filterItems(scopedItems);
   return sortItems(filtered);
 }
 
@@ -334,6 +488,9 @@ function updateSelectionUI() {
   if (deleteSelectedButton) {
     deleteSelectedButton.disabled = !hasSelection;
   }
+  if (decommissionButton) {
+    decommissionButton.disabled = !hasSelection;
+  }
 
   if (selectAllCheckbox) {
     if (totalItems === 0) {
@@ -348,6 +505,30 @@ function updateSelectionUI() {
     }
   }
 }
+
+mainTabTriggers.forEach((trigger) => {
+  trigger.addEventListener('click', (event) => {
+    event.preventDefault();
+    const tab = trigger.dataset.mainTab || 'register';
+    setActiveMainTab(tab);
+  });
+});
+
+formModeTriggers.forEach((trigger) => {
+  trigger.addEventListener('click', (event) => {
+    event.preventDefault();
+    const mode = trigger.dataset.formModeTrigger || 'single';
+    setActiveFormMode(mode);
+  });
+});
+
+scopeTriggers.forEach((trigger) => {
+  trigger.addEventListener('click', (event) => {
+    event.preventDefault();
+    const scope = trigger.dataset.scopeTrigger;
+    setInventoryScope(scope);
+  });
+});
 
 filterInputs.forEach((input) => {
   const key = input.dataset.filterKey;
@@ -395,11 +576,11 @@ if (exportButton) {
   exportButton.addEventListener('click', async () => {
     try {
       exportButton.disabled = true;
-      showStatus('Generando exportación...', 'is-info');
+      showStatus('Generando exportacion...', 'is-info');
       const result = await window.api.exportItems();
 
       if (result?.canceled) {
-        showStatus('Exportación cancelada.', 'is-warning');
+        showStatus('Exportacion cancelada.', 'is-warning');
       } else {
         const message = result?.filePath
           ? `Inventario exportado en ${result.filePath}`
@@ -521,6 +702,78 @@ function toggleSelection(serial, rowNumber, shouldSelect, row) {
   updateSelectionUI();
 }
 
+async function handleDecommissionAction(entries, options = {}) {
+  const payload = Array.isArray(entries) ? entries.filter(Boolean) : [];
+  if (payload.length === 0) {
+    return;
+  }
+
+  const normalized = payload
+    .map((entry) => {
+      if (!entry) {
+        return null;
+      }
+      if (typeof entry === 'string') {
+        const serial = normalizeSerial(entry);
+        return serial ? { serial, rowNumber: null } : null;
+      }
+      const serial = normalizeSerial(entry.serial);
+      const rowNumber = normalizeRowNumber(entry.rowNumber);
+      if (!serial && rowNumber == null) {
+        return null;
+      }
+      return { serial, rowNumber };
+    })
+    .filter(Boolean);
+
+  if (normalized.length === 0) {
+    return;
+  }
+
+  const { silentOnSuccess = false, skipDisable = false } = options;
+
+  try {
+    if (!skipDisable && decommissionButton) {
+      decommissionButton.disabled = true;
+    }
+    const result = await window.api.decommissionItems(normalized, {
+      estado: BAJA_STATE_LABEL,
+    });
+
+    const updatedCount = Number(result?.updated ?? 0);
+    if (updatedCount > 0) {
+      if (!silentOnSuccess) {
+        const message =
+          updatedCount === 1
+            ? 'Se dio de baja 1 item.'
+            : `Se dieron de baja ${updatedCount} items.`;
+        showStatus(message, 'is-success');
+      }
+
+      normalized.forEach((entry) => {
+        const key = getSelectionKey(entry.serial, entry.rowNumber);
+        if (key) {
+          selectedItems.delete(key);
+        }
+      });
+
+      if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+      }
+
+      await refreshItems();
+    } else if (!silentOnSuccess) {
+      showStatus('Los items seleccionados ya estaban dados de baja.', 'is-info');
+    }
+  } catch (error) {
+    console.error('Failed to mark items as baja', error);
+    showStatus('No se pudo dar de baja los items seleccionados.', 'is-danger');
+  } finally {
+    updateSelectionUI();
+  }
+}
+
 if (selectAllCheckbox) {
   selectAllCheckbox.addEventListener('change', () => {
     if (displayedItems.length === 0) {
@@ -575,7 +828,7 @@ if (deleteSelectedButton) {
       return;
     }
 
-    const confirmation = window.confirm('¿Quieres eliminar los ítems seleccionados?');
+    const confirmation = window.confirm('Seguro que deseas eliminar los items seleccionados?');
     if (!confirmation) {
       return;
     }
@@ -596,7 +849,7 @@ if (deleteSelectedButton) {
 
       if (deletedCount > 0) {
         showStatus(`Se eliminaron ${deletedCount} ítems.`, 'is-success');
-        selectedItems.clear();
+        showStatus(`Se eliminaron ${deletedCount} items.`, 'is-success');
         highlightRowBySerial(null);
         if (selectAllCheckbox) {
           selectAllCheckbox.checked = false;
@@ -616,11 +869,22 @@ if (deleteSelectedButton) {
     } catch (error) {
       console.error('Failed to delete selected items', error);
       showStatus('No se pudieron eliminar los ítems seleccionados.', 'is-danger');
-      lastAction = null;
+      showStatus('No se pudieron eliminar los items seleccionados.', 'is-danger');
       updateUndoUI();
     } finally {
       updateSelectionUI();
     }
+  });
+}
+
+if (decommissionButton) {
+  decommissionButton.addEventListener('click', async () => {
+    if (selectedItems.size === 0) {
+      return;
+    }
+    const entries = Array.from(selectedItems.values());
+    showStatus('Marcando items como dados de baja...', 'is-info');
+    await handleDecommissionAction(entries);
   });
 }
 
@@ -682,7 +946,7 @@ if (undoDeleteButton) {
     } catch (error) {
       console.error('Failed to undo last action', error);
       showStatus('No se pudo deshacer la acción.', 'is-danger');
-    } finally {
+      showStatus('No se pudo deshacer la accion.', 'is-danger');
       lastAction = null;
       selectedItems.clear();
       updateSelectionUI();
@@ -690,26 +954,6 @@ if (undoDeleteButton) {
     }
   });
 }
-
-function setActiveTab(targetId) {
-  tabTriggers.forEach((trigger) => {
-    const panelId = trigger.dataset.tabTarget;
-    const isActive = panelId === targetId;
-
-    trigger.classList.toggle('is-active', isActive);
-    trigger.setAttribute('aria-selected', String(isActive));
-
-    const panel = document.getElementById(panelId);
-    if (panel) {
-      panel.classList.toggle('is-active', isActive);
-      panel.setAttribute('aria-hidden', String(!isActive));
-    }
-  });
-}
-
-tabTriggers.forEach((trigger) => {
-  trigger.addEventListener('click', () => setActiveTab(trigger.dataset.tabTarget));
-});
 
 function showStatus(message, tone = 'is-info') {
   statusNotification.textContent = message;
@@ -752,80 +996,99 @@ function generateSerialNumber(item) {
   return `${locationCode}${categoryCode}${providerCode}-${dateSegment}-${quantitySegment}${randomSegment}`;
 }
 
-function resetImageInput() {
-  imageDataUrl = '';
-
-  if (imageInput) {
-    imageInput.value = '';
+function resetImageInput(context) {
+  if (!context) {
+    return;
   }
 
-  if (imageNameDisplay) {
-    imageNameDisplay.textContent = 'No se ha seleccionado una imagen';
+  context.dataUrl = '';
+
+  if (context.input) {
+    context.input.value = '';
   }
 
-  if (imagePreview) {
-    imagePreview.removeAttribute('src');
+  if (context.nameDisplay) {
+    context.nameDisplay.textContent = 'No se ha seleccionado una image';
   }
 
-  if (imagePreviewContainer) {
-    imagePreviewContainer.classList.add('is-hidden');
+  if (context.preview) {
+    context.preview.removeAttribute('src');
+  }
+
+  if (context.container) {
+    context.container.classList.add('is-hidden');
   }
 }
 
-if (imageInput) {
-  imageInput.addEventListener('change', () => {
-    if (!imageInput.files || imageInput.files.length === 0) {
-      resetImageInput();
+function setImagePreviewFromDataUrl(context, dataUrl, label) {
+  if (!context) {
+    return;
+  }
+
+  if (!dataUrl) {
+    resetImageInput(context);
+    return;
+  }
+
+  context.dataUrl = dataUrl;
+  if (context.preview) {
+    context.preview.src = dataUrl;
+  }
+  if (context.container) {
+    context.container.classList.remove('is-hidden');
+  }
+  if (context.nameDisplay) {
+    context.nameDisplay.textContent = label || 'image cargada';
+  }
+  if (context.input) {
+    context.input.value = '';
+  }
+}
+
+function attachImageInput(context) {
+  if (!context?.input) {
+    return;
+  }
+
+  context.input.addEventListener('change', () => {
+    if (!context.input.files || context.input.files.length === 0) {
+      resetImageInput(context);
       return;
     }
 
-    const [file] = imageInput.files;
+    const [file] = context.input.files;
     if (!file.type.startsWith('image/')) {
       showStatus('Seleccione un archivo de imagen valido.', 'is-warning');
-      resetImageInput();
+      resetImageInput(context);
       return;
     }
 
     if (file.size > MAX_IMAGE_BYTES) {
-      showStatus('La imagen debe pesar menos de 2 MB.', 'is-warning');
-      resetImageInput();
+      showStatus('La image debe pesar menos de 2 MB.', 'is-warning');
+      resetImageInput(context);
       return;
     }
 
     const reader = new FileReader();
     reader.addEventListener('error', () => {
       console.error('Failed to read selected image', reader.error);
-      showStatus('No se pudo leer la imagen seleccionada.', 'is-danger');
-      resetImageInput();
+      showStatus('No se pudo leer la image seleccionada.', 'is-danger');
+      resetImageInput(context);
     });
 
     reader.addEventListener('load', () => {
       const result = reader.result;
-      if (typeof result !== 'string') {
-        showStatus('No se pudo leer la imagen seleccionada.', 'is-danger');
-        resetImageInput();
-        return;
-      }
-
-      imageDataUrl = result;
-
-      if (
-        statusNotification.classList.contains('is-warning') ||
-        statusNotification.classList.contains('is-danger')
-      ) {
-        hideStatus();
-      }
-
-      if (imagePreview) {
-        imagePreview.src = imageDataUrl;
-      }
-
-      if (imagePreviewContainer) {
-        imagePreviewContainer.classList.remove('is-hidden');
-      }
-
-      if (imageNameDisplay) {
-        imageNameDisplay.textContent = file.name;
+      if (typeof result === 'string' && result.startsWith('data:image')) {
+        setImagePreviewFromDataUrl(context, result, file.name);
+        if (
+          statusNotification.classList.contains('is-warning') ||
+          statusNotification.classList.contains('is-danger')
+        ) {
+          hideStatus();
+        }
+      } else {
+        showStatus('El archivo seleccionado no es una image valida.', 'is-warning');
+        resetImageInput(context);
       }
     });
 
@@ -833,16 +1096,40 @@ if (imageInput) {
   });
 }
 
+attachImageInput(singleImageContext);
+attachImageInput(batchImageContext);
+
+if (form) {
+  form.addEventListener('reset', () => {
+    window.setTimeout(() => {
+      resetImageInput(singleImageContext);
+      if (serialInput) {
+        serialInput.value = '';
+      }
+    }, 0);
+  });
+}
+
+if (batchForm) {
+  batchForm.addEventListener('reset', () => {
+    window.setTimeout(() => {
+      resetImageInput(batchImageContext);
+    }, 0);
+  });
+}
+
 function collectItemFromForm() {
-  const item = fieldElements.reduce((acc, element) => {
+  const item = {};
+
+  singleFieldElements.forEach((element) => {
     const key = element.dataset.field;
     if (!key) {
-      return acc;
+      return;
     }
 
     if (element.type === 'file') {
-      acc[key] = imageDataUrl || '';
-      return acc;
+      item[key] = singleImageContext.dataUrl || '';
+      return;
     }
 
     let value = element.value ?? '';
@@ -855,9 +1142,8 @@ function collectItemFromForm() {
       value = Number.isNaN(parsed) ? value : parsed;
     }
 
-    acc[key] = value;
-    return acc;
-  }, {});
+    item[key] = value;
+  });
 
   if (!item.NoSerie) {
     const generated = generateSerialNumber(item);
@@ -871,12 +1157,55 @@ function collectItemFromForm() {
 }
 
 function resetForm() {
-  form.reset();
+  if (form) {
+    form.reset();
+  }
   stopEditing();
-  resetImageInput();
+  resetImageInput(singleImageContext);
   if (serialInput) {
     serialInput.value = '';
   }
+}
+
+function collectBatchBaseItem() {
+  const base = {};
+
+  batchFieldElements.forEach((element) => {
+    const key = element.dataset.batchField;
+    if (!key) {
+      return;
+    }
+
+    if (element.type === 'file') {
+      base[key] = batchImageContext.dataUrl || '';
+      return;
+    }
+
+    let value = element.value ?? '';
+    if (typeof value === 'string') {
+      value = value.trim();
+    }
+
+    if (element.type === 'number' && value !== '') {
+      const parsed = Number(value);
+      value = Number.isNaN(parsed) ? value : parsed;
+    }
+
+    base[key] = value;
+  });
+
+  if (batchImageContext.dataUrl) {
+    base.Imagen = batchImageContext.dataUrl;
+  }
+
+  return base;
+}
+
+function resetBatchForm() {
+  if (batchForm) {
+    batchForm.reset();
+  }
+  resetImageInput(batchImageContext);
 }
 
 function highlightRowBySerial(serial) {
@@ -894,7 +1223,7 @@ function highlightRowBySerial(serial) {
 
 function populateDetailFields(item) {
   detailFields.innerHTML = '';
-  FIELD_KEYS.forEach((key) => {
+  FORM_FIELD_KEYS.forEach((key) => {
     const dt = document.createElement('dt');
     dt.textContent = key;
     const dd = document.createElement('dd');
@@ -1009,29 +1338,64 @@ function createItemRow(item) {
   selectionCell.appendChild(checkbox);
   row.appendChild(selectionCell);
 
-  FIELD_KEYS.forEach((key) => {
+  TABLE_FIELD_KEYS.forEach((key) => {
     const cell = document.createElement('td');
-    if (key === 'Imagen') {
-      if (item[key]) {
-        const image = document.createElement('img');
-        image.src = item[key];
-        image.alt = `Imagen de ${item.Nombre || 'item'}`;
-        image.classList.add('table-image');
-        cell.appendChild(image);
-        cell.title = image.alt;
-      } else {
-        cell.textContent = 'N/A';
-        cell.title = 'Sin imagen';
-      }
-    } else {
-      const value = item[key];
-      const textValue =
-        value !== undefined && value !== null ? String(value) : '';
-      cell.textContent = textValue;
-      cell.title = textValue;
+    let value = item?.[key];
+
+    if (key === 'Cantidad') {
+      const numeric = Number(value);
+      value = Number.isFinite(numeric) ? numeric.toString() : value || '';
     }
+
+    if (key === 'NoSerie' && !value) {
+      value = 'Sin serie';
+    }
+
+    const textValue =
+      value !== undefined && value !== null && value !== '' ? String(value) : 'N/A';
+
+    cell.textContent = textValue;
+    cell.title = textValue === 'N/A' ? '' : textValue;
     row.appendChild(cell);
   });
+
+  const actionsCell = document.createElement('td');
+  actionsCell.classList.add('is-narrow', 'table-actions-cell');
+
+  const detailButton = document.createElement('button');
+  detailButton.type = 'button';
+  detailButton.className = 'button is-small is-link is-light';
+  detailButton.textContent = 'Ver';
+  detailButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    openDetailModal(item).catch((error) => {
+      console.error('Failed to open detail modal', error);
+    });
+  });
+  actionsCell.appendChild(detailButton);
+
+  const estado = (item?.Estado || '').trim();
+  if (estado && estado.toLowerCase() !== BAJA_STATE_LABEL.toLowerCase()) {
+    const bajaButton = document.createElement('button');
+    bajaButton.type = 'button';
+    bajaButton.className = 'button is-small is-warning is-light';
+    bajaButton.textContent = BAJA_BUTTON_LABEL;
+    bajaButton.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      await handleDecommissionAction(
+        [
+          {
+            serial,
+            rowNumber,
+          },
+        ],
+        { silentOnSuccess: false, skipDisable: true },
+      );
+    });
+    actionsCell.appendChild(bajaButton);
+  }
+
+  row.appendChild(actionsCell);
 
   row.addEventListener('click', () => {
     openDetailModal(item).catch((error) => {
@@ -1076,7 +1440,7 @@ function renderItems(items) {
 
     tableContainer.classList.add('is-hidden');
     if (emptyState) {
-      emptyState.textContent = 'Aún no hay ítems guardados.';
+      emptyState.textContent = 'Aun no hay items guardados.';
       emptyState.classList.remove('is-hidden');
     }
 
@@ -1093,11 +1457,11 @@ function renderItems(items) {
 
   if (displayedItems.length === 0) {
     highlightRowBySerial(null);
-    const columnCount = FIELD_KEYS.length + 1;
+    const columnCount = TABLE_FIELD_KEYS.length + 2;
     tableBody.innerHTML = `
       <tr class="table-empty-row">
         <td colspan="${columnCount}" class="has-text-centered has-text-grey">
-          No hay ítems que coincidan con los filtros actuales.
+          No hay items que coincidan con los filtros actuales.
         </td>
       </tr>
     `;
@@ -1183,7 +1547,8 @@ if (rutInput) {
   });
 }
 
-form.addEventListener('submit', async (event) => {
+if (form) {
+  form.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const item = collectItemFromForm();
@@ -1278,9 +1643,85 @@ form.addEventListener('submit', async (event) => {
     }
   }
 });
+}
 
-setActiveTab('tab-form');
+if (batchForm) {
+  batchForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const baseItem = collectBatchBaseItem();
+    if (!baseItem.Nombre) {
+      showStatus('El campo "Nombre" es obligatorio para el lote.', 'is-warning');
+      batchFieldMap.Nombre?.focus();
+      return;
+    }
+
+    const count = toPositiveInteger(batchCountInput?.value ?? 0, 0);
+    if (count <= 0) {
+      showStatus('Ingresa una cantidad valida de items a crear.', 'is-warning');
+      batchCountInput?.focus();
+      return;
+    }
+
+    const prefix = (batchSerialPrefixInput?.value || '').trim();
+    const startIndex = toPositiveInteger(batchStartIndexInput?.value ?? 1, 1);
+
+    const items = [];
+    for (let index = 0; index < count; index += 1) {
+      const copy = cloneItem(baseItem) || { ...baseItem };
+      if (prefix) {
+        const suffix = (startIndex + index).toString().padStart(3, '0');
+        copy.NoSerie = `${prefix}-${suffix}`;
+      } else {
+        copy.NoSerie = copy.NoSerie || '';
+      }
+      if (!copy.Cantidad) {
+        copy.Cantidad = baseItem.Cantidad || 1;
+      }
+      if (batchImageContext.dataUrl) {
+        copy.Imagen = batchImageContext.dataUrl;
+      }
+      items.push(copy);
+    }
+
+    try {
+      if (batchSubmitButton) {
+        batchSubmitButton.disabled = true;
+      }
+      showStatus('Guardando lote de items...', 'is-info');
+      const result = await window.api.saveItemsBatch(items);
+      const savedCount = Number(result?.saved ?? 0);
+
+      if (savedCount > 0) {
+        const message = prefix
+          ? `Se guardaron ${savedCount} items con el prefijo ${prefix}.`
+          : `Se guardaron ${savedCount} items.`;
+        showStatus(message, 'is-success');
+        resetBatchForm();
+        setActiveFormMode('single');
+        await refreshItems();
+      } else {
+        showStatus('No se guardaron items del lote.', 'is-warning');
+      }
+    } catch (error) {
+      console.error('Failed to save batch of items', error);
+      showStatus('No se pudo guardar el lote de items.', 'is-danger');
+    } finally {
+      if (batchSubmitButton) {
+        batchSubmitButton.disabled = false;
+      }
+    }
+  });
+}
+
+setActiveMainTab('register');
+setActiveFormMode('single');
+setInventoryScope(SCOPE_GENERAL);
 refreshItems();
+
+
+
+
 
 
 

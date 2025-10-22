@@ -115,6 +115,14 @@ ipcMain.handle('item:update', async (_e, payload) => {
   return utils.updateItem(excelFilePath, payload);
 });
 
+ipcMain.handle('items:decommission', async (_e, entries, options) => {
+  return utils.markItemsAsBaja(excelFilePath, entries, options);
+});
+
+ipcMain.handle('items:save-batch', async (_e, items) => {
+  return utils.saveItemsBatch(excelFilePath, items);
+});
+
 ipcMain.handle('items:export', async () => {
   const browserWindow = BrowserWindow.getFocusedWindow();
   const timestamp = new Date()

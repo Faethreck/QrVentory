@@ -15,6 +15,9 @@ const HEADERS = [
   'Nombre',
   'NoSerie',
   'Categoria',
+  'Tipo',
+  'Subvencion',
+  'Nivel Educativo',
   'Cantidad',
   'Fecha Ingreso',
   'Proveedor',
@@ -32,11 +35,15 @@ const HEADER_INDEX = HEADERS.reduce((accumulator, header, index) => {
   return accumulator;
 }, {});
 const SERIAL_COLUMN_INDEX = HEADER_INDEX.NoSerie + 1;
+const ESTADO_COLUMN_INDEX = HEADER_INDEX.Estado + 1;
 
 const EXPORT_COLUMN_WIDTHS = {
   Nombre: 28,
   NoSerie: 18,
   Categoria: 20,
+  Tipo: 16,
+  Subvencion: 20,
+  'Nivel Educativo': 20,
   Cantidad: 12,
   'Fecha Ingreso': 16,
   Proveedor: 26,
@@ -54,6 +61,56 @@ const HEADER_FONT_COLOR = 'FFFFFFFF';
 const STRIPED_FILL_COLOR = 'FFF4F8FA';
 const BORDER_COLOR = 'FFD6DEE2';
 const DATA_FONT_COLOR = 'FF1F2629';
+const DEFAULT_BAJA_ESTADO = 'Dado de baja';
+
+const ITEM_TYPE_OPTIONS = new Map([
+  ['tangible', 'Tangible'],
+  ['fungible', 'Fungible'],
+]);
+
+const SUBVENCION_OPTIONS = new Map([
+  ['aulas conectadas', 'Aulas Conectadas'],
+  ['sep', 'SEP'],
+  ['general', 'General'],
+]);
+
+const NIVEL_EDUCATIVO_OPTIONS = new Map([
+  ['educacion basica', 'Educacion Basica'],
+  ['educacion media', 'Educacion Media'],
+]);
+
+function normalizeOptionValue(raw, map) {
+  if (raw == null) {
+    return '';
+  }
+  const value = String(raw).trim();
+  if (!value) {
+    return '';
+  }
+  const key = value.toLowerCase();
+  if (map.has(key)) {
+    return map.get(key);
+  }
+  return value;
+}
+
+function ensureUniqueSerial(baseSerial, existingSerials, fallbackPrefix = 'AUTO') {
+  const prefix = fallbackPrefix || 'AUTO';
+  let candidate = normalizeSerial(baseSerial);
+  if (!candidate) {
+    candidate = `${prefix}-${Date.now().toString(36).toUpperCase()}`;
+  }
+
+  let suffix = 1;
+  let uniqueSerial = candidate;
+  while (existingSerials.has(uniqueSerial)) {
+    uniqueSerial = `${candidate}-${String(suffix).padStart(3, '0')}`;
+    suffix += 1;
+  }
+
+  existingSerials.add(uniqueSerial);
+  return uniqueSerial;
+}
 
 async function fileExists(filePath) {
   try {
@@ -141,6 +198,15 @@ function normalizeItem(rawItem = {}) {
     normalized[header] = String(value).trim();
   });
 
+  const normalizedTipo = normalizeOptionValue(normalized.Tipo || 'Tangible', ITEM_TYPE_OPTIONS);
+  normalized.Tipo = normalizedTipo.toLowerCase() === 'fungible' ? ITEM_TYPE_OPTIONS.get('fungible') : ITEM_TYPE_OPTIONS.get('tangible');
+
+  normalized.Subvencion = normalizeOptionValue(normalized.Subvencion || 'General', SUBVENCION_OPTIONS);
+  normalized['Nivel Educativo'] = normalizeOptionValue(
+    normalized['Nivel Educativo'] || 'Educacion Basica',
+    NIVEL_EDUCATIVO_OPTIONS,
+  );
+
   return normalized;
 }
 
@@ -150,6 +216,9 @@ function itemToRow(item) {
     normalized.Nombre ?? '',
     normalized.NoSerie ?? '',
     normalized.Categoria ?? '',
+    normalized.Tipo ?? '',
+    normalized.Subvencion ?? '',
+    normalized['Nivel Educativo'] ?? '',
     normalized.Cantidad ?? '',
     normalized['Fecha Ingreso'] ?? '',
     normalized.Proveedor ?? '',
@@ -576,4 +645,168 @@ export async function restoreItems(filePath, items = []) {
   }
 
   return { restored: rowsToAdd.length };
+}
+
+export async function markItemsAsBaja(filePath, entries = [], options = {}) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return { updated: 0, items: [] };
+  }
+
+  const normalizedEntries = entries
+    .map((entry) => {
+      if (!entry) {
+        return null;
+      }
+
+      if (typeof entry === 'string') {
+        const serial = normalizeSerial(entry);
+        return serial ? { serial, rowNumber: null } : null;
+      }
+
+      const serial = normalizeSerial(entry.serial);
+      const rowNumber = normalizeRowNumber(entry.rowNumber);
+
+      if (!serial && rowNumber == null) {
+        return null;
+      }
+
+      return { serial, rowNumber };
+    })
+    .filter(Boolean);
+
+  if (normalizedEntries.length === 0) {
+    return { updated: 0, items: [] };
+  }
+
+  const { workbook, sheet } = await ensureWorkbook(filePath);
+  if (!sheet) {
+    return { updated: 0, items: [] };
+  }
+
+  const targetEstadoRaw =
+    typeof options.estado === 'string' ? options.estado.trim() : DEFAULT_BAJA_ESTADO;
+  const targetEstado = targetEstadoRaw || DEFAULT_BAJA_ESTADO;
+
+  const rowTargets = new Set(
+    normalizedEntries
+      .map((entry) => entry.rowNumber)
+      .filter((rowNumber) => rowNumber != null),
+  );
+  const serialTargets = new Set(
+    normalizedEntries
+      .map((entry) => entry.serial)
+      .filter((serial) => Boolean(serial)),
+  );
+
+  let updated = 0;
+  const updatedItems = [];
+
+  for (let rowNumber = DATA_START_ROW; rowNumber <= sheet.rowCount; rowNumber += 1) {
+    const shouldUpdateByRow = rowTargets.has(rowNumber);
+    let serial = '';
+    let shouldUpdateBySerial = false;
+
+    if (!shouldUpdateByRow && serialTargets.size > 0) {
+      const cellValue = sheet.getCell(rowNumber, SERIAL_COLUMN_INDEX).value;
+      serial = extractSerialFromValue(cellValue);
+      shouldUpdateBySerial = Boolean(serial && serialTargets.has(serial));
+    }
+
+    if (!shouldUpdateByRow && !shouldUpdateBySerial) {
+      continue;
+    }
+
+    const row = sheet.getRow(rowNumber);
+    if (!row || !row.hasValues) {
+      continue;
+    }
+
+    const currentItem = rowToNormalizedItem(row, rowNumber);
+    const currentEstado = currentItem.Estado ?? '';
+
+    if (currentEstado === targetEstado) {
+      updatedItems.push(currentItem);
+    } else {
+      row.getCell(ESTADO_COLUMN_INDEX).value = targetEstado;
+      const updatedItem = {
+        ...currentItem,
+        Estado: targetEstado,
+      };
+      updatedItems.push(updatedItem);
+      updated += 1;
+    }
+
+    if (shouldUpdateByRow) {
+      rowTargets.delete(rowNumber);
+    }
+    if (shouldUpdateBySerial && serial) {
+      serialTargets.delete(serial);
+    }
+
+    if (rowTargets.size === 0 && serialTargets.size === 0) {
+      break;
+    }
+  }
+
+  if (updated > 0) {
+    await workbook.xlsx.writeFile(filePath);
+  }
+
+  return { updated, items: updatedItems };
+}
+
+export async function saveItemsBatch(filePath, rawItems = []) {
+  if (!Array.isArray(rawItems) || rawItems.length === 0) {
+    return { saved: 0, items: [], qrData: [] };
+  }
+
+  const pendingItems = rawItems.filter((entry) => entry && typeof entry === 'object');
+  if (pendingItems.length === 0) {
+    return { saved: 0, items: [], qrData: [] };
+  }
+
+  const { workbook, sheet } = await ensureWorkbook(filePath);
+  if (!sheet) {
+    return { saved: 0, items: [], qrData: [] };
+  }
+
+  const existingSerials = new Set();
+  for (let rowNumber = DATA_START_ROW; rowNumber <= sheet.rowCount; rowNumber += 1) {
+    const serialValue = extractSerialFromValue(
+      sheet.getCell(rowNumber, SERIAL_COLUMN_INDEX).value,
+    );
+    if (serialValue) {
+      existingSerials.add(serialValue);
+    }
+  }
+
+  const savedItems = [];
+  pendingItems.forEach((entry) => {
+    const normalized = normalizeItem(entry);
+    const fallbackPrefix = normalized.Nombre ? normalized.Nombre.toUpperCase().slice(0, 4) : 'AUTO';
+    normalized.NoSerie = ensureUniqueSerial(normalized.NoSerie, existingSerials, fallbackPrefix);
+    sheet.addRow(itemToRow(normalized));
+    savedItems.push({ ...normalized });
+  });
+
+  if (savedItems.length === 0) {
+    return { saved: 0, items: [], qrData: [] };
+  }
+
+  await workbook.xlsx.writeFile(filePath);
+
+  const qrData = [];
+  for (const item of savedItems) {
+    const qrDataUrl = await generateQrForItem(item);
+    qrData.push({
+      NoSerie: item.NoSerie,
+      qrDataUrl,
+    });
+  }
+
+  return {
+    saved: savedItems.length,
+    items: savedItems,
+    qrData,
+  };
 }
