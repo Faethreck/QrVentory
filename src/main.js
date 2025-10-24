@@ -199,6 +199,18 @@ ipcMain.handle('items:print-labels', async (_event, entries) => {
   }
 });
 
+ipcMain.handle('items:load-demo', async () => {
+  try {
+    const result = await utils.seedDemoItems(excelFilePath);
+    return {
+      added: Number(result?.added ?? 0),
+    };
+  } catch (error) {
+    console.error('Failed to seed demo items', error);
+    throw error;
+  }
+});
+
 
 
 

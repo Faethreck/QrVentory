@@ -80,6 +80,279 @@ const NIVEL_EDUCATIVO_OPTIONS = new Map([
   ['educacion media', 'Educacion Media'],
 ]);
 
+const DEMO_ITEMS = [
+  {
+    Nombre: 'Notebook Lenovo ThinkPad E15',
+    NoSerie: 'DEMO-LAP-0001',
+    Categoria: 'Tecnologia',
+    Tipo: 'Tangible',
+    Subvencion: 'General',
+    'Nivel Educativo': 'Educacion Media',
+    Cantidad: 1,
+    'Fecha Ingreso': '2025-02-10',
+    Proveedor: 'TecnoProveedor Ltda.',
+    Rut: '76.543.210-5',
+    NoFactura: 'F-98213',
+    Estado: 'Operativo',
+    Responsable: 'Equipo TIC',
+    Ubicacion: 'Laboratorio Informatica',
+    Notas: 'Equipo configurado para pruebas de software.',
+    Imagen: '',
+  },
+  {
+    Nombre: 'Tablet Samsung Galaxy Tab S9',
+    NoSerie: 'DEMO-TAB-0002',
+    Categoria: 'Dispositivos Moviles',
+    Tipo: 'Tangible',
+    Subvencion: 'SEP',
+    'Nivel Educativo': 'Educacion Basica',
+    Cantidad: 3,
+    'Fecha Ingreso': '2025-03-04',
+    Proveedor: 'MobileStore SPA',
+    Rut: '70.111.222-3',
+    NoFactura: 'F-99021',
+    Estado: 'Operativo',
+    Responsable: 'Coordinacion SEP',
+    Ubicacion: 'Sala de Clases 2B',
+    Notas: 'Uso compartido por docentes.',
+    Imagen: '',
+  },
+  {
+    Nombre: 'Impresora HP LaserJet Pro M404dn',
+    NoSerie: 'DEMO-IMP-0003',
+    Categoria: 'Impresoras',
+    Tipo: 'Tangible',
+    Subvencion: 'General',
+    'Nivel Educativo': 'Educacion Media',
+    Cantidad: 1,
+    'Fecha Ingreso': '2024-11-18',
+    Proveedor: 'Office Supply SPA',
+    Rut: '96.123.456-8',
+    NoFactura: 'F-77102',
+    Estado: 'En mantenimiento',
+    Responsable: 'Luis Rojas',
+    Ubicacion: 'Sala de Profesores',
+    Notas: 'Requiere cambio de rodillo.',
+    Imagen: '',
+  },
+  {
+    Nombre: 'Proyector Epson PowerLite X49',
+    NoSerie: 'DEMO-PRO-0004',
+    Categoria: 'Audiovisual',
+    Tipo: 'Tangible',
+    Subvencion: 'Aulas Conectadas',
+    'Nivel Educativo': 'Educacion Media',
+    Cantidad: 1,
+    'Fecha Ingreso': '2024-08-25',
+    Proveedor: 'VisualTech',
+    Rut: '82.456.789-2',
+    NoFactura: 'F-55901',
+    Estado: 'Operativo',
+    Responsable: 'Maria Fernandez',
+    Ubicacion: 'Auditorio Principal',
+    Notas: 'Lampara reemplazada en agosto.',
+    Imagen: '',
+  },
+  {
+    Nombre: 'Kit de herramientas Truper 108 piezas',
+    NoSerie: 'DEMO-HER-0005',
+    Categoria: 'Herramientas',
+    Tipo: 'Tangible',
+    Subvencion: 'General',
+    'Nivel Educativo': 'Educacion Media',
+    Cantidad: 2,
+    'Fecha Ingreso': '2025-01-04',
+    Proveedor: 'Ferreteria Industrial',
+    Rut: '72.555.888-5',
+    NoFactura: 'F-65120',
+    Estado: 'Disponible',
+    Responsable: 'Equipo Mantencion',
+    Ubicacion: 'Bodega Central',
+    Notas: 'Asignados bajo préstamo según requerimiento.',
+    Imagen: '',
+  },
+  {
+    Nombre: 'Monitor LG UltraWide 34"',
+    NoSerie: 'DEMO-MON-0006',
+    Categoria: 'Monitores',
+    Tipo: 'Tangible',
+    Subvencion: 'SEP',
+    'Nivel Educativo': 'Educacion Media',
+    Cantidad: 2,
+    'Fecha Ingreso': '2025-06-12',
+    Proveedor: 'VisionTech',
+    Rut: '73.876.543-1',
+    NoFactura: 'F-88032',
+    Estado: 'Operativo',
+    Responsable: 'Carolina Torres',
+    Ubicacion: 'Sala de Diseño',
+    Notas: 'Asignado a estaciones de diseño gráfico.',
+    Imagen: '',
+  },
+  {
+    Nombre: 'Router Cisco Catalyst 9200',
+    NoSerie: 'DEMO-RED-0007',
+    Categoria: 'Redes',
+    Tipo: 'Tangible',
+    Subvencion: 'General',
+    'Nivel Educativo': 'Educacion Media',
+    Cantidad: 1,
+    'Fecha Ingreso': '2024-12-15',
+    Proveedor: 'NetServices',
+    Rut: '65.987.123-4',
+    NoFactura: 'F-33007',
+    Estado: 'Operativo',
+    Responsable: 'Departamento Redes',
+    Ubicacion: 'Data Center',
+    Notas: 'Configuración HA activa.',
+    Imagen: '',
+  },
+  {
+    Nombre: 'Set de Micrófonos Inalámbricos Shure',
+    NoSerie: 'DEMO-AUD-0008',
+    Categoria: 'Audiovisual',
+    Tipo: 'Tangible',
+    Subvencion: 'SEP',
+    'Nivel Educativo': 'Educacion Media',
+    Cantidad: 1,
+    'Fecha Ingreso': '2025-04-18',
+    Proveedor: 'SoundPro',
+    Rut: '69.222.111-9',
+    NoFactura: 'F-77401',
+    Estado: 'Operativo',
+    Responsable: 'Departamento de Música',
+    Ubicacion: 'Sala de Música',
+    Notas: 'Incluye receptores y estuche rígido.',
+    Imagen: '',
+  },
+  {
+    Nombre: 'Kit de Robótica LEGO Education SPIKE',
+    NoSerie: 'DEMO-ROB-0009',
+    Categoria: 'Robótica',
+    Tipo: 'Tangible',
+    Subvencion: 'SEP',
+    'Nivel Educativo': 'Educacion Basica',
+    Cantidad: 4,
+    'Fecha Ingreso': '2025-05-20',
+    Proveedor: 'STEM Chile',
+    Rut: '63.321.654-7',
+    NoFactura: 'F-88112',
+    Estado: 'Operativo',
+    Responsable: 'Academia STEM',
+    Ubicacion: 'Laboratorio STEM',
+    Notas: 'Incluye manuales y tablets de control.',
+    Imagen: '',
+  },
+  {
+    Nombre: 'Silla ergonómica Herman Miller',
+    NoSerie: 'DEMO-MUE-0010',
+    Categoria: 'Mobiliario',
+    Tipo: 'Tangible',
+    Subvencion: 'General',
+    'Nivel Educativo': 'Educacion Media',
+    Cantidad: 4,
+    'Fecha Ingreso': '2025-03-01',
+    Proveedor: 'Muebles Pro',
+    Rut: '79.654.321-0',
+    NoFactura: 'F-44210',
+    Estado: 'Operativo',
+    Responsable: 'Equipo de TI',
+    Ubicacion: 'Oficina Coordinación',
+    Notas: 'Asientos asignados a estaciones hot desk.',
+    Imagen: '',
+  },
+  {
+    Nombre: 'Cartucho de tinta Epson 502 Negro',
+    NoSerie: 'DEMO-FUN-1001',
+    Categoria: 'Suministros de impresión',
+    Tipo: 'Fungible',
+    Subvencion: 'General',
+    'Nivel Educativo': 'Educacion Media',
+    Cantidad: 18,
+    'Fecha Ingreso': '2025-05-28',
+    Proveedor: 'Office Supply SPA',
+    Rut: '96.123.456-8',
+    NoFactura: 'F-90321',
+    Estado: 'Consumible disponible',
+    Responsable: 'Sala de Profesores',
+    Ubicacion: 'Bodega de impresión',
+    Notas: 'Reponer cuando queden 4 unidades.',
+    Imagen: '',
+  },
+  {
+    Nombre: 'Resmas de papel carta 75g',
+    NoSerie: 'DEMO-FUN-1002',
+    Categoria: 'Papelería',
+    Tipo: 'Fungible',
+    Subvencion: 'General',
+    'Nivel Educativo': 'Educacion Basica',
+    Cantidad: 40,
+    'Fecha Ingreso': '2025-04-15',
+    Proveedor: 'Papeles Andes',
+    Rut: '62.457.890-3',
+    NoFactura: 'F-78220',
+    Estado: 'Consumible disponible',
+    Responsable: 'Administración',
+    Ubicacion: 'Almacén general',
+    Notas: 'Cajas con sensor de humedad.',
+    Imagen: '',
+  },
+  {
+    Nombre: 'Alcohol gel 500 ml',
+    NoSerie: 'DEMO-FUN-1003',
+    Categoria: 'Higiene',
+    Tipo: 'Fungible',
+    Subvencion: 'SEP',
+    'Nivel Educativo': 'Educacion Basica',
+    Cantidad: 32,
+    'Fecha Ingreso': '2025-03-22',
+    Proveedor: 'Salud Integral Ltda.',
+    Rut: '77.210.654-2',
+    NoFactura: 'F-55210',
+    Estado: 'Consumible disponible',
+    Responsable: 'Inspectoría',
+    Ubicacion: 'Bodega sanitaria',
+    Notas: 'Reparto mensual a salas.',
+    Imagen: '',
+  },
+  {
+    Nombre: 'Pack baterías AA recargables',
+    NoSerie: 'DEMO-FUN-1004',
+    Categoria: 'Energía',
+    Tipo: 'Fungible',
+    Subvencion: 'Aulas Conectadas',
+    'Nivel Educativo': 'Educacion Media',
+    Cantidad: 24,
+    'Fecha Ingreso': '2025-02-08',
+    Proveedor: 'TecnoProveedor Ltda.',
+    Rut: '76.543.210-5',
+    NoFactura: 'F-88216',
+    Estado: 'Consumible disponible',
+    Responsable: 'Equipo TIC',
+    Ubicacion: 'Laboratorio Informatica',
+    Notas: 'Incluye cargadores rápidos.',
+    Imagen: '',
+  },
+  {
+    Nombre: 'Set de material didáctico STEM',
+    NoSerie: 'DEMO-FUN-1005',
+    Categoria: 'Material educativo',
+    Tipo: 'Fungible',
+    Subvencion: 'SEP',
+    'Nivel Educativo': 'Educacion Basica',
+    Cantidad: 15,
+    'Fecha Ingreso': '2025-06-05',
+    Proveedor: 'STEM Chile',
+    Rut: '63.321.654-7',
+    NoFactura: 'F-90345',
+    Estado: 'Consumible disponible',
+    Responsable: 'Academia STEM',
+    Ubicacion: 'Sala de recursos',
+    Notas: 'Reposición trimestral planificada.',
+    Imagen: '',
+  },
+];
+
 const mmToPoints = (mm) => (mm * 72) / 25.4;
 const LABEL_PAGE_WIDTH_PT = mmToPoints(216);
 const LABEL_PAGE_HEIGHT_PT = mmToPoints(279);
@@ -90,7 +363,7 @@ const LABEL_ROWS = 5;
 const LABELS_PER_PAGE = LABEL_COLUMNS * LABEL_ROWS;
 const LABEL_MARGIN_X_PT = (LABEL_PAGE_WIDTH_PT - LABEL_COLUMNS * LABEL_WIDTH_PT) / 2;
 const LABEL_MARGIN_Y_PT = (LABEL_PAGE_HEIGHT_PT - LABEL_ROWS * LABEL_HEIGHT_PT) / 2;
-const QR_SIZE_RATIO = 0.6;
+const QR_SIZE_RATIO = 0.9;
 const QR_SIZE_PT = Math.min(LABEL_WIDTH_PT, LABEL_HEIGHT_PT) * QR_SIZE_RATIO;
 
 function normalizeOptionValue(raw, map) {
@@ -538,6 +811,55 @@ export async function generateLabelsPdf(sourcePath, rawEntries = [], destination
     totalRequested,
     missing: missingEntries.length,
   };
+}
+
+export async function seedDemoItems(filePath) {
+  const { workbook, sheet } = await ensureWorkbook(filePath);
+  if (!sheet) {
+    return { added: 0 };
+  }
+
+  const existingSerials = new Set();
+  const existingKeys = new Set();
+
+  for (let rowNumber = DATA_START_ROW; rowNumber <= sheet.rowCount; rowNumber += 1) {
+    const serialValue = extractSerialFromValue(
+      sheet.getCell(rowNumber, SERIAL_COLUMN_INDEX).value,
+    );
+    if (serialValue) {
+      existingSerials.add(serialValue);
+    }
+    const nombreValue = sheet.getCell(rowNumber, HEADER_INDEX.Nombre + 1).value ?? '';
+    const ubicacionValue = sheet.getCell(rowNumber, HEADER_INDEX.Ubicacion + 1).value ?? '';
+    const key = `${normalizeSerial(nombreValue).toLowerCase()}|${normalizeSerial(ubicacionValue).toLowerCase()}`;
+    existingKeys.add(key);
+  }
+
+  let added = 0;
+
+  DEMO_ITEMS.forEach((item, index) => {
+    const normalized = normalizeItem(item);
+    const key = `${normalized.Nombre.toLowerCase()}|${normalized.Ubicacion.toLowerCase()}`;
+    if (existingKeys.has(key)) {
+      return;
+    }
+
+    const fallbackPrefix =
+      normalized.Nombre?.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4) ||
+      `DEMO${index + 1}`;
+    normalized.NoSerie = ensureUniqueSerial(normalized.NoSerie, existingSerials, fallbackPrefix);
+
+    sheet.addRow(itemToRow(normalized));
+    existingKeys.add(key);
+    added += 1;
+  });
+
+  if (added === 0) {
+    return { added: 0 };
+  }
+
+  await workbook.xlsx.writeFile(filePath);
+  return { added };
 }
 
 function buildExportRow(rawItem) {

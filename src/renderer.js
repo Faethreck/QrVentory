@@ -27,6 +27,7 @@ const imagePreviewContainer = document.getElementById('image-preview-container')
 const deleteSelectedButton = document.getElementById('delete-selected');
 const decommissionButton = document.getElementById('decommission-selected');
 const printLabelsButton = document.getElementById('print-labels');
+const loadDemoItemsButton = document.getElementById('load-demo-items');
 const selectAllCheckbox = document.getElementById('select-all-rows');
 const undoDeleteButton = document.getElementById('undo-delete');
 const exportButton = document.getElementById('export-items');
@@ -36,6 +37,94 @@ const clearFiltersButton = document.getElementById('clear-filters');
 const sortButtons = document.querySelectorAll('.table-sort-button');
 const formSubmitButton = singleForm ? singleForm.querySelector('button[type="submit"]') : null;
 const batchSubmitButton = batchForm ? batchForm.querySelector('button[type="submit"]') : null;
+const themeToggleButton = document.getElementById('theme-toggle');
+
+const THEME_STORAGE_KEY = 'qrventory-theme';
+const prefersDarkScheme =
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-color-scheme: dark)')
+    : null;
+const rootElement = document.documentElement;
+
+const getStoredTheme = () => {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const refreshThemeToggleLabel = (activeTheme) => {
+  if (!themeToggleButton) {
+    return;
+  }
+  const isLight = activeTheme === 'light';
+  const labelText = isLight ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro';
+  const prefix = String.fromCodePoint(isLight ? 0x1f319 : 0x1f31e);
+  themeToggleButton.textContent = `${prefix} ${labelText}`;
+  themeToggleButton.setAttribute('aria-label', labelText);
+  themeToggleButton.setAttribute('aria-pressed', String(isLight));
+  themeToggleButton.setAttribute('title', labelText);
+  themeToggleButton.dataset.activeTheme = activeTheme;
+};
+
+const setTheme = (theme, { persist = true } = {}) => {
+  const normalizedTheme = theme === 'light' ? 'light' : 'dark';
+  if (normalizedTheme === 'light') {
+    rootElement.setAttribute('data-theme', 'light');
+  } else {
+    rootElement.removeAttribute('data-theme');
+  }
+  if (persist) {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, normalizedTheme);
+    } catch {
+      // Intentionally ignore storage errors (private mode, etc.)
+    }
+  }
+  refreshThemeToggleLabel(normalizedTheme);
+  return normalizedTheme;
+};
+
+const resolvePreferredTheme = () => {
+  const stored = getStoredTheme();
+  if (stored) {
+    return stored;
+  }
+  if (prefersDarkScheme && typeof prefersDarkScheme.matches === 'boolean') {
+    return prefersDarkScheme.matches ? 'dark' : 'light';
+  }
+  return 'dark';
+};
+
+const initializeThemeControls = () => {
+  const initialTheme = setTheme(resolvePreferredTheme(), { persist: false });
+
+  if (themeToggleButton) {
+    themeToggleButton.addEventListener('click', () => {
+      const currentTheme = rootElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+      const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
+      setTheme(nextTheme);
+    });
+  }
+
+  if (prefersDarkScheme) {
+    const handleSchemeChange = (event) => {
+      if (getStoredTheme()) {
+        return;
+      }
+      setTheme(event.matches ? 'dark' : 'light', { persist: false });
+    };
+
+    if (typeof prefersDarkScheme.addEventListener === 'function') {
+      prefersDarkScheme.addEventListener('change', handleSchemeChange);
+    } else if (typeof prefersDarkScheme.addListener === 'function') {
+      prefersDarkScheme.addListener(handleSchemeChange);
+    }
+  }
+};
+
+initializeThemeControls();
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const singleFieldElements = singleForm
@@ -955,6 +1044,33 @@ if (printLabelsButton) {
       showStatus('No se pudieron generar las etiquetas.', 'is-danger');
     } finally {
       updateSelectionUI();
+    }
+  });
+}
+
+if (loadDemoItemsButton) {
+  loadDemoItemsButton.addEventListener('click', async () => {
+    try {
+      loadDemoItemsButton.disabled = true;
+      showStatus('Agregando items de demostración...', 'is-info');
+      const result = await window.api.loadDemoItems();
+      const addedCount = Number(result?.added ?? 0);
+      if (addedCount > 0) {
+        showStatus(
+          addedCount === 1
+            ? 'Se agregó 1 item de demostración.'
+            : `Se agregaron ${addedCount} items de demostración.`,
+          'is-success',
+        );
+      } else {
+        showStatus('No se agregaron nuevos items de demostración.', 'is-warning');
+      }
+      await refreshItems();
+    } catch (error) {
+      console.error('Failed to load demo items', error);
+      showStatus('No se pudieron agregar los items de demostración.', 'is-danger');
+    } finally {
+      loadDemoItemsButton.disabled = false;
     }
   });
 }

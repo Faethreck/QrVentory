@@ -47,11 +47,12 @@ El comando `npm start` inicia la aplicación en modo desarrollo usando Electron 
 
 1. **Registrar ítems**: desde la pestaña Registrar items, completa el formulario individual o carga un lote. La aplicación almacena los registros en `data.xlsx` y genera QR automáticamente.
 2. **Gestionar inventario**: la pestaña Items guardados permite filtrar por categoría, subvención, estado, etc., ordenar por cualquier columna y realizar acciones masivas sobre selecciones.
-3. **Imprimir etiquetas adhesivas**:
+3. **Cargar ítems de demostración (opcional)**: usa el botón **Cargar demo** en Items guardados para poblar `data.xlsx` con ejemplos listos para imprimir o probar filtros. Los registros se agregan una sola vez por nombre/ubicación.
+4. **Imprimir etiquetas adhesivas**:
    - Selecciona hasta 10 ítems (o más: se paginan automáticamente) en Items guardados.
    - Haz clic en **Imprimir etiquetas** y elige dónde guardar el PDF.
    - El PDF resultante coloca cada QR centrado en stickers de 101 × 51 mm, distribuidos en dos columnas y cinco filas por hoja (10 por página, formato carta 216 × 279 mm). Ajusta la impresora para tamaño real/sin escalado y verifica la alineación con una hoja de prueba antes de usar el papel adhesivo.
-4. **Exportar**: desde la misma pestaña, utiliza **Exportar** para generar un Excel compartible o de respaldo.
+5. **Exportar**: desde la misma pestaña, utiliza **Exportar** para generar un Excel compartible o de respaldo.
 
 ## Estructura de carpetas relevante
 

@@ -9,6 +9,18 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
     />
+    <script>
+      (function () {
+        try {
+          var storedTheme = localStorage.getItem('qrventory-theme');
+          if (storedTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+          }
+        } catch (error) {
+          /* ignore access errors */
+        }
+      })();
+    </script>
     <link rel="stylesheet" href="./src/index.css" />
   </head>
   <body>
@@ -19,6 +31,16 @@
           <p class="subtitle">
             Gestiona y controla el inventario escolar desde un solo lugar
           </p>
+          <div class="theme-switcher">
+            <button
+              id="theme-toggle"
+              class="button squircle-button is-small is-light"
+              type="button"
+              aria-label="Cambiar a modo claro"
+            >
+              Cambiar a modo claro
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -33,7 +55,7 @@
 
         <div class="card">
           <header class="card-header">
-            <p class="card-header-title">Gestion de inventario</p>
+            <p class="card-header-title">Gestión de inventario</p>
           </header>
           <div class="card-content">
             <div
@@ -126,7 +148,7 @@
                             </div>
                           </div>
                         </div>
-                        <div class="column is-one-third">
+                        <div class="column is-one-third column-tipo">
                           <div class="field">
                             <label class="label" for="input-tipo">Tipo</label>
                             <div class="control select is-fullwidth">
@@ -150,7 +172,7 @@
                           </div>
                         </div>
 
-                        <div class="column is-one-third">
+                        <div class="column is-one-third column-nivel">
                           <div class="field">
                             <label class="label" for="input-nivel-educativo">Nivel educativo</label>
                             <div class="control select is-fullwidth">
@@ -330,8 +352,8 @@
                       </div>
 
                       <div class="buttons is-right">
-                        <button class="button is-light" type="reset">Limpiar</button>
-                        <button class="button is-primary" type="submit">
+                        <button class="button squircle-button is-light" type="reset">Limpiar</button>
+                        <button class="button squircle-button is-primary" type="submit">
                           Guardar item
                         </button>
                       </div>
@@ -443,7 +465,7 @@
                             </div>
                           </div>
                         </div>
-                        <div class="column is-one-third">
+                        <div class="column is-one-third column-nivel">
                           <div class="field">
                             <label class="label" for="batch-nivel-educativo">Nivel educativo</label>
                             <div class="control select is-fullwidth">
@@ -619,8 +641,8 @@
                       </div>
 
                       <div class="buttons is-right">
-                        <button class="button is-light" type="reset">Limpiar</button>
-                        <button class="button is-primary" type="submit">
+                        <button class="button squircle-button is-light" type="reset">Limpiar</button>
+                        <button class="button squircle-button is-primary" type="submit">
                           Crear lote
                         </button>
                       </div>
@@ -666,10 +688,10 @@
                     </ul>
                   </div>
                   <div class="saved-panel-buttons buttons">
-                    <button id="export-items" class="button is-link is-light" type="button">
+                    <button id="export-items" class="button squircle-button is-link is-light" type="button">
                       Exportar
                     </button>
-                    <button id="undo-delete" class="button is-light" type="button" disabled>
+                    <button id="undo-delete" class="button squircle-button is-light" type="button" disabled>
                       Deshacer
                     </button>
                   </div>
@@ -679,7 +701,7 @@
                   <div class="buttons">
                     <button
                       id="decommission-selected"
-                      class="button is-warning"
+                      class="button squircle-button is-warning"
                       type="button"
                       disabled
                     >
@@ -687,7 +709,7 @@
                     </button>
                     <button
                       id="delete-selected"
-                      class="button is-danger is-light"
+                      class="button squircle-button is-danger is-light"
                       type="button"
                       disabled
                     >
@@ -695,11 +717,18 @@
                     </button>
                     <button
                       id="print-labels"
-                      class="button is-primary is-light"
+                      class="button squircle-button is-primary is-light"
                       type="button"
                       disabled
                     >
                       Imprimir etiquetas
+                    </button>
+                    <button
+                      id="load-demo-items"
+                      class="button squircle-button is-link is-light"
+                      type="button"
+                    >
+                      Cargar demo
                     </button>
                   </div>
                 </div>
@@ -814,7 +843,7 @@
                     </div>
                   </div>
                   <div class="column is-full">
-                    <button id="clear-filters" class="button is-light" type="button" disabled>
+                    <button id="clear-filters" class="button squircle-button is-light" type="button" disabled>
                       Limpiar filtros
                     </button>
                   </div>
@@ -909,10 +938,10 @@
               <p class="detail-qr-title">Codigo QR</p>
               <img id="detail-qr" alt="QR del item" />
               <div class="buttons is-centered mt-4">
-                <button id="edit-item" class="button is-primary" type="button">
+                <button id="edit-item" class="button squircle-button is-primary" type="button">
                   Editar
                 </button>
-                <button id="close-detail" class="button" type="button" data-close-modal>
+                <button id="close-detail" class="button squircle-button" type="button" data-close-modal>
                   Cerrar
                 </button>
               </div>

@@ -12,4 +12,5 @@ contextBridge.exposeInMainWorld('api', {
   decommissionItems: (entries, options) => ipcRenderer.invoke('items:decommission', entries, options),
   saveItemsBatch: (items) => ipcRenderer.invoke('items:save-batch', items),
   printLabels: (entries) => ipcRenderer.invoke('items:print-labels', entries),
+  loadDemoItems: () => ipcRenderer.invoke('items:load-demo'),
 });
