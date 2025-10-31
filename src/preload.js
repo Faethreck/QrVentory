@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('api', {
   restoreItems: (items) => ipcRenderer.invoke('items:restore', items),
   updateItem: (payload) => ipcRenderer.invoke('item:update', payload),
   exportItems: () => ipcRenderer.invoke('items:export'),
+  importItems: () => ipcRenderer.invoke('items:import'),
   decommissionItems: (entries, options) => ipcRenderer.invoke('items:decommission', entries, options),
   saveItemsBatch: (items) => ipcRenderer.invoke('items:save-batch', items),
   printLabels: (entries) => ipcRenderer.invoke('items:print-labels', entries),

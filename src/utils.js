@@ -6,6 +6,7 @@ import { constants as fsConstants } from 'node:fs';
 import ExcelJS from 'exceljs';
 import QRCode from 'qrcode';
 import { PDFDocument } from 'pdf-lib';
+import { deriveSerialBase, normalizeSerialValue } from './shared/serial.js';
 
 const EMPTY_PIXEL_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
 
@@ -76,6 +77,7 @@ const SUBVENCION_OPTIONS = new Map([
 ]);
 
 const NIVEL_EDUCATIVO_OPTIONS = new Map([
+  ['general', 'General'],
   ['educacion basica', 'Educacion Basica'],
   ['educacion media', 'Educacion Media'],
 ]);
@@ -83,7 +85,7 @@ const NIVEL_EDUCATIVO_OPTIONS = new Map([
 const DEMO_ITEMS = [
   {
     Nombre: 'Notebook Lenovo ThinkPad E15',
-    NoSerie: 'DEMO-LAP-0001',
+    NoSerie: '',
     Categoria: 'Tecnologia',
     Tipo: 'Tangible',
     Subvencion: 'General',
@@ -101,7 +103,7 @@ const DEMO_ITEMS = [
   },
   {
     Nombre: 'Tablet Samsung Galaxy Tab S9',
-    NoSerie: 'DEMO-TAB-0002',
+    NoSerie: '',
     Categoria: 'Dispositivos Moviles',
     Tipo: 'Tangible',
     Subvencion: 'SEP',
@@ -119,7 +121,7 @@ const DEMO_ITEMS = [
   },
   {
     Nombre: 'Impresora HP LaserJet Pro M404dn',
-    NoSerie: 'DEMO-IMP-0003',
+    NoSerie: '',
     Categoria: 'Impresoras',
     Tipo: 'Tangible',
     Subvencion: 'General',
@@ -137,7 +139,7 @@ const DEMO_ITEMS = [
   },
   {
     Nombre: 'Proyector Epson PowerLite X49',
-    NoSerie: 'DEMO-PRO-0004',
+    NoSerie: '',
     Categoria: 'Audiovisual',
     Tipo: 'Tangible',
     Subvencion: 'Aulas Conectadas',
@@ -155,7 +157,7 @@ const DEMO_ITEMS = [
   },
   {
     Nombre: 'Kit de herramientas Truper 108 piezas',
-    NoSerie: 'DEMO-HER-0005',
+    NoSerie: '',
     Categoria: 'Herramientas',
     Tipo: 'Tangible',
     Subvencion: 'General',
@@ -173,7 +175,7 @@ const DEMO_ITEMS = [
   },
   {
     Nombre: 'Monitor LG UltraWide 34"',
-    NoSerie: 'DEMO-MON-0006',
+    NoSerie: '',
     Categoria: 'Monitores',
     Tipo: 'Tangible',
     Subvencion: 'SEP',
@@ -191,7 +193,7 @@ const DEMO_ITEMS = [
   },
   {
     Nombre: 'Router Cisco Catalyst 9200',
-    NoSerie: 'DEMO-RED-0007',
+    NoSerie: '',
     Categoria: 'Redes',
     Tipo: 'Tangible',
     Subvencion: 'General',
@@ -209,7 +211,7 @@ const DEMO_ITEMS = [
   },
   {
     Nombre: 'Set de Micrófonos Inalámbricos Shure',
-    NoSerie: 'DEMO-AUD-0008',
+    NoSerie: '',
     Categoria: 'Audiovisual',
     Tipo: 'Tangible',
     Subvencion: 'SEP',
@@ -227,7 +229,7 @@ const DEMO_ITEMS = [
   },
   {
     Nombre: 'Kit de Robótica LEGO Education SPIKE',
-    NoSerie: 'DEMO-ROB-0009',
+    NoSerie: '',
     Categoria: 'Robótica',
     Tipo: 'Tangible',
     Subvencion: 'SEP',
@@ -245,7 +247,7 @@ const DEMO_ITEMS = [
   },
   {
     Nombre: 'Silla ergonómica Herman Miller',
-    NoSerie: 'DEMO-MUE-0010',
+    NoSerie: '',
     Categoria: 'Mobiliario',
     Tipo: 'Tangible',
     Subvencion: 'General',
@@ -263,7 +265,7 @@ const DEMO_ITEMS = [
   },
   {
     Nombre: 'Cartucho de tinta Epson 502 Negro',
-    NoSerie: 'DEMO-FUN-1001',
+    NoSerie: '',
     Categoria: 'Suministros de impresión',
     Tipo: 'Fungible',
     Subvencion: 'General',
@@ -281,7 +283,7 @@ const DEMO_ITEMS = [
   },
   {
     Nombre: 'Resmas de papel carta 75g',
-    NoSerie: 'DEMO-FUN-1002',
+    NoSerie: '',
     Categoria: 'Papelería',
     Tipo: 'Fungible',
     Subvencion: 'General',
@@ -299,7 +301,7 @@ const DEMO_ITEMS = [
   },
   {
     Nombre: 'Alcohol gel 500 ml',
-    NoSerie: 'DEMO-FUN-1003',
+    NoSerie: '',
     Categoria: 'Higiene',
     Tipo: 'Fungible',
     Subvencion: 'SEP',
@@ -317,7 +319,7 @@ const DEMO_ITEMS = [
   },
   {
     Nombre: 'Pack baterías AA recargables',
-    NoSerie: 'DEMO-FUN-1004',
+    NoSerie: '',
     Categoria: 'Energía',
     Tipo: 'Fungible',
     Subvencion: 'Aulas Conectadas',
@@ -335,7 +337,7 @@ const DEMO_ITEMS = [
   },
   {
     Nombre: 'Set de material didáctico STEM',
-    NoSerie: 'DEMO-FUN-1005',
+    NoSerie: '',
     Categoria: 'Material educativo',
     Tipo: 'Fungible',
     Subvencion: 'SEP',
@@ -381,18 +383,26 @@ function normalizeOptionValue(raw, map) {
   return value;
 }
 
-function ensureUniqueSerial(baseSerial, existingSerials, fallbackPrefix = 'AUTO') {
-  const prefix = fallbackPrefix || 'AUTO';
+function ensureUniqueSerial(baseSerial, existingSerials, fallbackPrefix = 'AUTO', options = {}) {
+  const { forceSuffix = false, padWidth = 3, startAt = 1 } = options || {};
+  const normalizedPrefix = normalizeSerial(fallbackPrefix) || 'AUTO';
   let candidate = normalizeSerial(baseSerial);
   if (!candidate) {
-    candidate = `${prefix}-${Date.now().toString(36).toUpperCase()}`;
+    candidate = normalizedPrefix;
   }
 
-  let suffix = 1;
-  let uniqueSerial = candidate;
+  if (!forceSuffix && !existingSerials.has(candidate)) {
+    existingSerials.add(candidate);
+    return candidate;
+  }
+
+  const safePadWidth = Number.isInteger(padWidth) && padWidth > 0 ? padWidth : 3;
+  let suffix = Number.isInteger(startAt) && startAt > 0 ? startAt : 1;
+  let uniqueSerial = `${candidate}-${String(suffix).padStart(safePadWidth, '0')}`;
+
   while (existingSerials.has(uniqueSerial)) {
-    uniqueSerial = `${candidate}-${String(suffix).padStart(3, '0')}`;
     suffix += 1;
+    uniqueSerial = `${candidate}-${String(suffix).padStart(safePadWidth, '0')}`;
   }
 
   existingSerials.add(uniqueSerial);
@@ -490,7 +500,7 @@ function normalizeItem(rawItem = {}) {
 
   normalized.Subvencion = normalizeOptionValue(normalized.Subvencion || 'General', SUBVENCION_OPTIONS);
   normalized['Nivel Educativo'] = normalizeOptionValue(
-    normalized['Nivel Educativo'] || 'Educacion Basica',
+    normalized['Nivel Educativo'] || 'General',
     NIVEL_EDUCATIVO_OPTIONS,
   );
 
@@ -530,7 +540,7 @@ function buildPayload(item) {
 }
 
 function normalizeSerial(value) {
-  return value == null ? '' : String(value).trim();
+  return normalizeSerialValue(value);
 }
 
 function normalizeRowNumber(value) {
@@ -632,6 +642,30 @@ export async function generateQrForItem(rawItem) {
 export async function saveItemAndGenerateQR(filePath, rawItem) {
   const item = normalizeItem(rawItem);
   const { workbook, sheet } = await ensureWorkbook(filePath);
+
+  const existingSerials = new Set();
+  for (let rowNumber = DATA_START_ROW; rowNumber <= sheet.rowCount; rowNumber += 1) {
+    const serialValue = extractSerialFromValue(
+      sheet.getCell(rowNumber, SERIAL_COLUMN_INDEX).value,
+    );
+    if (serialValue) {
+      existingSerials.add(serialValue);
+    }
+  }
+
+  const fallbackPrefixRaw = item.Nombre
+    ? item.Nombre.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4)
+    : '';
+  const fallbackPrefix = fallbackPrefixRaw || 'AUTO';
+  const hasUserSerial = Boolean(item.NoSerie);
+  const baseSerial = hasUserSerial ? item.NoSerie : deriveSerialBase(item);
+
+  item.NoSerie = ensureUniqueSerial(baseSerial, existingSerials, fallbackPrefix, {
+    forceSuffix: !hasUserSerial,
+    padWidth: 3,
+    startAt: 1,
+  });
+
   sheet.addRow(itemToRow(item));
   await workbook.xlsx.writeFile(filePath);
   return generateQrForItem(item);
@@ -708,6 +742,61 @@ export async function exportItemsToFile(sourcePath, destinationPath) {
   return { exported: items.length };
 }
 
+
+export async function importItemsFromFile(targetPath, sourcePath) {
+  if (!sourcePath) {
+    throw new Error('sourcePath is required');
+  }
+
+  const sourceWorkbook = new ExcelJS.Workbook();
+  await sourceWorkbook.xlsx.readFile(sourcePath);
+
+  let sourceSheet = null;
+  for (const sheet of sourceWorkbook.worksheets) {
+    const headerRow = sheet.getRow(1);
+    const headerValues = headerRow?.values?.slice(1) ?? [];
+    const matchesHeaders = HEADERS.every((header, index) => {
+      const cellValue = headerValues[index];
+      const normalized = cellValue == null ? '' : String(cellValue).trim();
+      return normalized === header;
+    });
+    if (matchesHeaders) {
+      sourceSheet = sheet;
+      break;
+    }
+  }
+
+  if (!sourceSheet) {
+    throw new Error('El archivo seleccionado no contiene los encabezados esperados.');
+  }
+
+  const importedItems = [];
+  for (let rowNumber = DATA_START_ROW; rowNumber <= sourceSheet.rowCount; rowNumber += 1) {
+    const row = sourceSheet.getRow(rowNumber);
+    if (!row || !row.hasValues) {
+      continue;
+    }
+    importedItems.push(rowToNormalizedItem(row, rowNumber));
+  }
+
+  const { workbook, sheet } = await ensureWorkbook(targetPath);
+  if (!sheet) {
+    return { imported: 0 };
+  }
+
+  const existingRowCount = sheet.rowCount - DATA_START_ROW + 1;
+  if (existingRowCount > 0) {
+    sheet.spliceRows(DATA_START_ROW, existingRowCount);
+  }
+
+  importedItems.forEach((item) => {
+    sheet.addRow(itemToRow(item));
+  });
+
+  await workbook.xlsx.writeFile(targetPath);
+
+  return { imported: importedItems.length };
+}
 export async function generateLabelsPdf(sourcePath, rawEntries = [], destinationPath) {
   if (!destinationPath) {
     throw new Error('destinationPath is required');
@@ -847,7 +936,15 @@ export async function seedDemoItems(filePath) {
     const fallbackPrefix =
       normalized.Nombre?.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4) ||
       `DEMO${index + 1}`;
-    normalized.NoSerie = ensureUniqueSerial(normalized.NoSerie, existingSerials, fallbackPrefix);
+
+    const hasUserSerial = Boolean(normalized.NoSerie);
+    const baseSerial = hasUserSerial ? normalized.NoSerie : deriveSerialBase(normalized);
+
+    normalized.NoSerie = ensureUniqueSerial(baseSerial, existingSerials, fallbackPrefix, {
+      forceSuffix: !hasUserSerial,
+      padWidth: 3,
+      startAt: 1,
+    });
 
     sheet.addRow(itemToRow(normalized));
     existingKeys.add(key);
@@ -1247,8 +1344,20 @@ export async function saveItemsBatch(filePath, rawItems = []) {
   const savedItems = [];
   pendingItems.forEach((entry) => {
     const normalized = normalizeItem(entry);
-    const fallbackPrefix = normalized.Nombre ? normalized.Nombre.toUpperCase().slice(0, 4) : 'AUTO';
-    normalized.NoSerie = ensureUniqueSerial(normalized.NoSerie, existingSerials, fallbackPrefix);
+    const fallbackPrefixRaw = normalized.Nombre
+      ? normalized.Nombre.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4)
+      : '';
+    const fallbackPrefix = fallbackPrefixRaw || 'AUTO';
+
+    const hasUserSerial = Boolean(normalized.NoSerie);
+    const baseSerial = hasUserSerial ? normalized.NoSerie : deriveSerialBase(normalized);
+
+    normalized.NoSerie = ensureUniqueSerial(baseSerial, existingSerials, fallbackPrefix, {
+      forceSuffix: !hasUserSerial,
+      padWidth: 3,
+      startAt: 1,
+    });
+
     sheet.addRow(itemToRow(normalized));
     savedItems.push({ ...normalized });
   });

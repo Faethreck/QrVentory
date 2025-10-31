@@ -1,3 +1,5 @@
+import { deriveSerialBase, normalizeSerialValue } from './shared/serial.js';
+
 const statusNotification = document.getElementById('status-notification');
 const singleForm = document.getElementById('item-form');
 const batchForm = document.getElementById('batch-form');
@@ -31,6 +33,7 @@ const loadDemoItemsButton = document.getElementById('load-demo-items');
 const selectAllCheckbox = document.getElementById('select-all-rows');
 const undoDeleteButton = document.getElementById('undo-delete');
 const exportButton = document.getElementById('export-items');
+const importButton = document.getElementById('import-items');
 const editItemButton = document.getElementById('edit-item');
 const filterInputs = document.querySelectorAll('[data-filter-key]');
 const clearFiltersButton = document.getElementById('clear-filters');
@@ -310,7 +313,7 @@ function setFormMode(mode) {
     delete form.dataset.serial;
     delete form.dataset.rowNumber;
     if (formSubmitButton) {
-      formSubmitButton.textContent = 'Guardar ítem';
+      formSubmitButton.textContent = 'Guardar +�tem';
     }
   }
 }
@@ -688,6 +691,36 @@ if (exportButton) {
     }
   });
 }
+if (importButton) {
+  importButton.addEventListener('click', async () => {
+    try {
+      importButton.disabled = true;
+      showStatus('Importando inventario...', 'is-info');
+      const result = await window.api.importItems();
+
+      if (result?.canceled) {
+        showStatus('Importacion cancelada.', 'is-warning');
+        return;
+      }
+
+      const importedCount = Number(result?.imported ?? 0);
+      await refreshItems();
+
+      const message =
+        importedCount > 0
+          ? `Se importaron ${importedCount} items.`
+          : 'No se importaron items.';
+      showStatus(message, importedCount > 0 ? 'is-success' : 'is-warning');
+    } catch (error) {
+      console.error('Failed to import items', error);
+      showStatus('No se pudo importar el inventario.', 'is-danger');
+    } finally {
+      importButton.disabled = false;
+    }
+  });
+}
+
+
 
 if (editItemButton) {
   editItemButton.addEventListener('click', () => {
@@ -961,7 +994,7 @@ if (deleteSelectedButton) {
             .filter(Boolean);
 
       if (deletedCount > 0) {
-        showStatus(`Se eliminaron ${deletedCount} ítems.`, 'is-success');
+        showStatus(`Se eliminaron ${deletedCount} +�tems.`, 'is-success');
         showStatus(`Se eliminaron ${deletedCount} items.`, 'is-success');
         highlightRowBySerial(null);
         if (selectAllCheckbox) {
@@ -975,13 +1008,13 @@ if (deleteSelectedButton) {
         updateUndoUI();
         await refreshItems();
       } else {
-        showStatus('No se eliminó ningún ítem.', 'is-warning');
+        showStatus('No se elimin+� ning+�n +�tem.', 'is-warning');
         lastAction = null;
         updateUndoUI();
       }
     } catch (error) {
       console.error('Failed to delete selected items', error);
-      showStatus('No se pudieron eliminar los ítems seleccionados.', 'is-danger');
+      showStatus('No se pudieron eliminar los +�tems seleccionados.', 'is-danger');
       showStatus('No se pudieron eliminar los items seleccionados.', 'is-danger');
       updateUndoUI();
     } finally {
@@ -1027,8 +1060,8 @@ if (printLabelsButton) {
       if (printedCount > 0) {
         let message =
           printedCount === 1
-            ? 'Se generó un PDF con 1 etiqueta.'
-            : `Se generó un PDF con ${printedCount} etiquetas.`;
+            ? 'Se gener+� un PDF con 1 etiqueta.'
+            : `Se gener+� un PDF con ${printedCount} etiquetas.`;
         if (missingCount > 0 || totalRequested > printedCount) {
           const notFound = missingCount > 0 ? missingCount : totalRequested - printedCount;
           message += ` No se pudieron incluir ${notFound} item(s).`;
@@ -1052,23 +1085,23 @@ if (loadDemoItemsButton) {
   loadDemoItemsButton.addEventListener('click', async () => {
     try {
       loadDemoItemsButton.disabled = true;
-      showStatus('Agregando items de demostración...', 'is-info');
+      showStatus('Agregando items de demostraci+�n...', 'is-info');
       const result = await window.api.loadDemoItems();
       const addedCount = Number(result?.added ?? 0);
       if (addedCount > 0) {
         showStatus(
           addedCount === 1
-            ? 'Se agregó 1 item de demostración.'
-            : `Se agregaron ${addedCount} items de demostración.`,
+            ? 'Se agreg+� 1 item de demostraci+�n.'
+            : `Se agregaron ${addedCount} items de demostraci+�n.`,
           'is-success',
         );
       } else {
-        showStatus('No se agregaron nuevos items de demostración.', 'is-warning');
+        showStatus('No se agregaron nuevos items de demostraci+�n.', 'is-warning');
       }
       await refreshItems();
     } catch (error) {
       console.error('Failed to load demo items', error);
-      showStatus('No se pudieron agregar los items de demostración.', 'is-danger');
+      showStatus('No se pudieron agregar los items de demostraci+�n.', 'is-danger');
     } finally {
       loadDemoItemsButton.disabled = false;
     }
@@ -1093,10 +1126,10 @@ if (undoDeleteButton) {
           const restoredCount = Number(result?.restored ?? 0);
 
           if (restoredCount > 0) {
-            showStatus(`Se restauraron ${restoredCount} ítems.`, 'is-success');
+            showStatus(`Se restauraron ${restoredCount} +�tems.`, 'is-success');
             await refreshItems();
           } else {
-            showStatus('No se restauró ningún ítem.', 'is-warning');
+            showStatus('No se restaur+� ning+�n +�tem.', 'is-warning');
           }
         }
       } else if (lastAction.type === 'edit') {
@@ -1116,7 +1149,7 @@ if (undoDeleteButton) {
 
           const updatedCount = Number(result?.updated ?? 0);
           if (updatedCount > 0) {
-            showStatus('Se revirtieron los cambios del ítem.', 'is-success');
+            showStatus('Se revirtieron los cambios del +�tem.', 'is-success');
             await refreshItems();
             const revertedItem =
               findCachedItem(targetSerial, targetRowNumber) ||
@@ -1124,7 +1157,7 @@ if (undoDeleteButton) {
               previousItem;
             await openDetailModal(revertedItem, result?.qrDataUrl);
           } else {
-            showStatus('No se pudo revertir el ítem.', 'is-warning');
+            showStatus('No se pudo revertir el +�tem.', 'is-warning');
           }
         }
       } else {
@@ -1132,7 +1165,7 @@ if (undoDeleteButton) {
       }
     } catch (error) {
       console.error('Failed to undo last action', error);
-      showStatus('No se pudo deshacer la acción.', 'is-danger');
+      showStatus('No se pudo deshacer la acci+�n.', 'is-danger');
       showStatus('No se pudo deshacer la accion.', 'is-danger');
       lastAction = null;
       selectedItems.clear();
@@ -1153,36 +1186,37 @@ function hideStatus() {
   statusNotification.textContent = '';
 }
 
-function slug(value, fallback, length) {
-  const clean = (value || fallback)
-    .toString()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '');
+const SERIAL_SUFFIX_PAD = 3;
 
-  if (clean.length >= length) {
-    return clean.slice(0, length);
-  }
-
-  const filler = (fallback || '').toUpperCase() || 'X';
-  return (clean + filler.repeat(length)).slice(0, length);
+function getExistingSerialsSet() {
+  const serials = new Set();
+  const items = Array.isArray(cachedItems) ? cachedItems : [];
+  items.forEach((entry) => {
+    const serial = normalizeSerialValue(entry?.NoSerie);
+    if (serial) {
+      serials.add(serial);
+    }
+  });
+  return serials;
 }
 
 function generateSerialNumber(item) {
-  const locationCode = slug(item.Ubicacion, 'LOC', 3);
-  const categoryCode = slug(item.Categoria, 'CAT', 3);
-  const providerCode = slug(item.Proveedor, 'PRV', 2);
-  const rawDate = item['Fecha Ingreso']
-    ? item['Fecha Ingreso'].replace(/-/g, '')
-    : new Date().toISOString().slice(2, 10).replace(/-/g, '');
-  const dateSegment = rawDate.slice(-6);
-  const quantitySegment = (item.Cantidad || '1').toString().padStart(2, '0').slice(-2);
-  const randomSegment = Math.floor(Math.random() * 1000)
-    .toString()
-    .padStart(3, '0');
+  const base = deriveSerialBase(item);
+  if (!base) {
+    return '';
+  }
 
-  return `${locationCode}${categoryCode}${providerCode}-${dateSegment}-${quantitySegment}${randomSegment}`;
+  const existingSerials = getExistingSerialsSet();
+  let suffix = 1;
+  let candidate = `${base}-${String(suffix).padStart(SERIAL_SUFFIX_PAD, '0')}`;
+
+  while (existingSerials.has(candidate)) {
+    suffix += 1;
+    candidate = `${base}-${String(suffix).padStart(SERIAL_SUFFIX_PAD, '0')}`;
+  }
+
+  return candidate;
 }
-
 function resetImageInput(context) {
   if (!context) {
     return;
@@ -1778,7 +1812,7 @@ if (form) {
       const updatedCount = Number(result?.updated ?? 0);
 
       if (updatedCount > 0) {
-        showStatus('Ítem actualizado correctamente.', 'is-success');
+        showStatus('+�tem actualizado correctamente.', 'is-success');
         await refreshItems();
         const refreshedItem =
           findCachedItem(targetSerial, targetRowNumber) ||
@@ -1802,7 +1836,7 @@ if (form) {
         resetForm();
         await openDetailModal(refreshedItem, result?.qrDataUrl);
       } else {
-        showStatus('No se encontró el ítem a actualizar.', 'is-warning');
+        showStatus('No se encontr+� el +�tem a actualizar.', 'is-warning');
         lastAction = null;
         updateUndoUI();
       }
@@ -1821,7 +1855,7 @@ if (form) {
   } catch (error) {
     if (isEditMode) {
       console.error('Failed to update item', error);
-      showStatus('No se pudo actualizar el ítem.', 'is-danger');
+      showStatus('No se pudo actualizar el +�tem.', 'is-danger');
       lastAction = null;
       updateUndoUI();
     } else {

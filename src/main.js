@@ -156,6 +156,36 @@ ipcMain.handle('items:export', async () => {
   }
 });
 
+ipcMain.handle('items:import', async () => {
+  try {
+    const browserWindow = BrowserWindow.getFocusedWindow();
+    const { canceled, filePaths } = await dialog.showOpenDialog(browserWindow ?? undefined, {
+      title: 'Importar inventario',
+      buttonLabel: 'Importar',
+      filters: [
+        {
+          name: 'Libro de Excel',
+          extensions: ['xlsx'],
+        },
+      ],
+      properties: ['openFile'],
+    });
+
+    if (canceled || !filePaths || filePaths.length === 0) {
+      return { canceled: true };
+    }
+
+    const sourcePath = filePaths[0];
+    const result = await utils.importItemsFromFile(excelFilePath, sourcePath);
+    return {
+      canceled: false,
+      imported: Number(result?.imported ?? 0),
+    };
+  } catch (error) {
+    console.error('Failed to import items', error);
+    throw error;
+  }
+});
 ipcMain.handle('items:print-labels', async (_event, entries) => {
   try {
     const browserWindow = BrowserWindow.getFocusedWindow();
