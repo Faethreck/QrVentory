@@ -45,7 +45,7 @@ La aplicación genera códigos QR únicos para cada artículo, permitiendo ident
 ⸻
 
 🔁 Flujo de trabajo sugerido
-	1.	Registrar ítems: agrega artículos manualmente o carga un lote desde Excel.
+	1.	**Registrar ítems:** agrega artículos manualmente o carga un lote desde Excel.
 	2.	Revisar inventario: usa los filtros para encontrar, modificar o eliminar registros.
 	3.	Generar etiquetas: selecciona los artículos y crea el PDF de códigos QR.
 	4.	Exportar: guarda un archivo Excel con el inventario actualizado.
