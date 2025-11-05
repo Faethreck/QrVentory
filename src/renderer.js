@@ -306,14 +306,14 @@ function setFormMode(mode) {
   if (mode === 'edit') {
     form.dataset.mode = 'edit';
     if (formSubmitButton) {
-      formSubmitButton.textContent = 'Guardar cambios';
+      formSubmitButton.textContent = "Guardar cambios";
     }
   } else {
     delete form.dataset.mode;
     delete form.dataset.serial;
     delete form.dataset.rowNumber;
     if (formSubmitButton) {
-      formSubmitButton.textContent = 'Guardar +�tem';
+      formSubmitButton.textContent = "Guardar Item";
     }
   }
 }
@@ -1837,7 +1837,7 @@ if (form) {
         resetForm();
         await openDetailModal(refreshedItem, result?.qrDataUrl);
       } else {
-        showStatus('No se encontr+� el +�tem a actualizar.', 'is-warning');
+        showStatus('No se encontro el item a actualizar.', 'is-warning');
         lastAction = null;
         updateUndoUI();
       }
@@ -1856,7 +1856,7 @@ if (form) {
   } catch (error) {
     if (isEditMode) {
       console.error('Failed to update item', error);
-      showStatus('No se pudo actualizar el +�tem.', 'is-danger');
+      showStatus('No se pudo actualizar el item.', 'is-danger');
       lastAction = null;
       updateUndoUI();
     } else {
@@ -1940,6 +1940,18 @@ setActiveMainTab('register');
 setActiveFormMode('single');
 setInventoryScope(SCOPE_GENERAL);
 refreshItems();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
