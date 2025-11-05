@@ -330,8 +330,9 @@ function setActiveFormMode(mode) {
   formModeTriggers.forEach((trigger) => {
     const triggerMode = trigger.dataset.formModeTrigger;
     const isActive = triggerMode === normalizedMode;
-    trigger.parentElement?.classList.toggle('is-active', isActive);
+    trigger.classList.toggle('is-active', isActive);
     trigger.setAttribute('aria-selected', String(isActive));
+    trigger.setAttribute('aria-pressed', String(isActive));
   });
 
   formModePanels.forEach((panel) => {
@@ -367,8 +368,9 @@ function setInventoryScope(scope) {
     const isActive =
       (triggerScope === SCOPE_GENERAL && normalized === SCOPE_GENERAL) ||
       triggerScope === normalized;
-    trigger.parentElement?.classList.toggle('is-active', isActive);
+    trigger.classList.toggle('is-active', isActive);
     trigger.setAttribute('aria-selected', String(isActive));
+    trigger.setAttribute('aria-pressed', String(isActive));
   });
 
   renderItems();
@@ -619,8 +621,7 @@ formModeTriggers.forEach((trigger) => {
 });
 
 scopeTriggers.forEach((trigger) => {
-  trigger.addEventListener('click', (event) => {
-    event.preventDefault();
+  trigger.addEventListener('click', () => {
     const scope = trigger.dataset.scopeTrigger;
     setInventoryScope(scope);
   });

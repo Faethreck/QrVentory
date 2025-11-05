@@ -9,6 +9,12 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
     />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
     <script>
       (function () {
         try {
@@ -23,57 +29,100 @@
     </script>
     <link rel="stylesheet" href="./src/index.css" />
   </head>
-  <body>
-    <section class="hero hero-compact">
-      <div class="hero-body">
-        <div class="container">
-          <p class="title">QrVentory</p>
-          <p class="subtitle">
-            Gestiona y controla el inventario escolar desde un solo lugar
-          </p>
-          <div class="theme-switcher">
-            <button
-              id="theme-toggle"
-              class="button squircle-button is-small is-light"
-              type="button"
-              aria-label="Cambiar a modo claro"
-            >
-              Cambiar a modo claro
-            </button>
+<body>
+    <div class="app-shell">
+      <aside class="app-sidebar" aria-label="Navegacion principal">
+        <div class="sidebar-brand">
+          <div class="brand-avatar" aria-hidden="true">QV</div>
+          <div class="brand-copy">
+            <p class="brand-eyebrow">QrVentory</p>
+            <p class="brand-subtitle">Inventario escolar</p>
           </div>
         </div>
-      </div>
-    </section>
 
-    <section class="section">
-      <div class="container">
-        <div
-          id="status-notification"
-          class="notification is-hidden"
-          role="status"
-        ></div>
+        <nav class="sidebar-nav" aria-label="Secciones principales">
+          <p class="sidebar-heading">Panel</p>
+          <ul role="tablist" aria-orientation="vertical">
+            <li class="is-active">
+              <button
+                class="sidebar-nav-button"
+                type="button"
+                data-main-tab="register"
+                aria-controls="panel-register"
+                aria-selected="true"
+                role="tab"
+              >
+                <span class="sidebar-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5v14"></path>
+                    <path d="M5 12h14"></path>
+                  </svg>
+                </span>
+                <span class="sidebar-label">
+                  <span class="sidebar-title">Registrar items</span>
+                  <span class="sidebar-description">Crear o importar inventario</span>
+                </span>
+              </button>
+            </li>
+            <li>
+              <button
+                class="sidebar-nav-button"
+                type="button"
+                data-main-tab="saved"
+                aria-controls="panel-saved"
+                aria-selected="false"
+                role="tab"
+              >
+                <span class="sidebar-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 7h16"></path>
+                    <path d="M4 12h16"></path>
+                    <path d="M4 17h16"></path>
+                  </svg>
+                </span>
+                <span class="sidebar-label">
+                  <span class="sidebar-title">Items guardados</span>
+                  <span class="sidebar-description">Revisar y gestionar activos</span>
+                </span>
+              </button>
+            </li>
+          </ul>
+        </nav>
 
-        <div class="card">
-          <header class="card-header">
-            <p class="card-header-title">Gestión de inventario</p>
-          </header>
-          <div class="card-content">
+        <div class="sidebar-footer">
+          <button
+            id="theme-toggle"
+            class="button squircle-button is-small is-light"
+            type="button"
+            aria-label="Cambiar a modo claro"
+          >
+            Cambiar a modo claro
+          </button>
+          <p class="sidebar-footer-note">Alternar modo</p>
+        </div>
+      </aside>
+
+      <main class="app-main" role="main">
+        <section class="app-content">
+          <div class="app-content-inner">
             <div
-              class="tabs is-toggle main-tabs"
-              role="tablist"
-              aria-label="Secciones principales"
-            >
-              <ul>
-                <li class="is-active">
-                  <a href="#" data-main-tab="register">Registrar items</a>
-                </li>
-                <li>
-                  <a href="#" data-main-tab="saved">Items guardados</a>
-                </li>
-              </ul>
-            </div>
+              id="status-notification"
+              class="notification is-hidden"
+              role="status"
+            ></div>
 
-            <div class="main-tab-panels">
+            <div class="card main-panel-card">
+              <div class="card-content">
+                <div class="main-panel-heading">
+                  <div>
+                    <h2 class="main-panel-title">Gestion de inventario</h2>
+                    <p class="main-panel-subtitle">
+                      Mantente al dia con el registro y la administracion de activos.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="main-tab-panels">
               <div
                 id="panel-register"
                 class="main-tab-panel is-active"
@@ -81,18 +130,32 @@
                 aria-hidden="false"
               >
                 <div
-                  class="tabs is-toggle form-mode-tabs"
+                  class="form-mode-switch"
                   role="tablist"
                   aria-label="Registro de items"
                 >
-                  <ul>
-                    <li class="is-active">
-                      <a href="#" data-form-mode-trigger="single">Registro individual</a>
-                    </li>
-                    <li>
-                      <a href="#" data-form-mode-trigger="batch">Lote de items</a>
-                    </li>
-                  </ul>
+                  <button
+                    type="button"
+                    class="button squircle-button form-mode-button is-active"
+                    data-form-mode-trigger="single"
+                    aria-controls="form-panel-single"
+                    aria-selected="true"
+                    aria-pressed="true"
+                  >
+                    <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-id-card"></i></span>
+                    <span class="button-label">Registro individual</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="button squircle-button form-mode-button"
+                    data-form-mode-trigger="batch"
+                    aria-controls="form-panel-batch"
+                    aria-selected="false"
+                    aria-pressed="false"
+                  >
+                    <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></span>
+                    <span class="button-label">Lote de items</span>
+                  </button>
                 </div>
 
                 <div class="form-mode-panels">
@@ -353,9 +416,13 @@
                       </div>
 
                       <div class="buttons is-right">
-                        <button class="button squircle-button is-light" type="reset">Limpiar</button>
+                        <button class="button squircle-button is-light" type="reset">
+                          <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-eraser"></i></span>
+                          <span class="button-label">Limpiar</span>
+                        </button>
                         <button class="button squircle-button is-primary" type="submit">
-                          Guardar item
+                          <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-floppy-disk"></i></span>
+                          <span class="button-label">Guardar item</span>
                         </button>
                       </div>
                     </form>
@@ -643,9 +710,13 @@
                       </div>
 
                       <div class="buttons is-right">
-                        <button class="button squircle-button is-light" type="reset">Limpiar</button>
+                        <button class="button squircle-button is-light" type="reset">
+                          <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-broom"></i></span>
+                          <span class="button-label">Limpiar</span>
+                        </button>
                         <button class="button squircle-button is-primary" type="submit">
-                          Crear lote
+                          <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></span>
+                          <span class="button-label">Crear lote</span>
                         </button>
                       </div>
                     </form>
@@ -674,27 +745,55 @@
               >
                 <div class="saved-panel-header">
                   <div
-                    class="tabs is-toggle is-toggle-rounded inventory-scope-tabs"
+                    class="inventory-scope-switch"
                     role="tablist"
+                    aria-label="Filtrar inventario"
                   >
-                    <ul>
-                      <li class="is-active">
-                        <a href="#" data-scope-trigger="General">General</a>
-                      </li>
-                      <li>
-                        <a href="#" data-scope-trigger="Tangible">Tangible</a>
-                      </li>
-                      <li>
-                        <a href="#" data-scope-trigger="Fungible">Fungible</a>
-                      </li>
-                    </ul>
+                    <button
+                      type="button"
+                      class="button squircle-button inventory-scope-button is-active"
+                      data-scope-trigger="General"
+                      aria-selected="true"
+                      aria-pressed="true"
+                    >
+                      <span class="button-icon" aria-hidden="true">
+                        <i class="fa-solid fa-table-cells-large"></i>
+                      </span>
+                      <span class="button-label">General</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="button squircle-button inventory-scope-button"
+                      data-scope-trigger="Tangible"
+                      aria-selected="false"
+                      aria-pressed="false"
+                    >
+                      <span class="button-icon" aria-hidden="true">
+                        <i class="fa-solid fa-cubes"></i>
+                      </span>
+                      <span class="button-label">Tangible</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="button squircle-button inventory-scope-button"
+                      data-scope-trigger="Fungible"
+                      aria-selected="false"
+                      aria-pressed="false"
+                    >
+                      <span class="button-icon" aria-hidden="true">
+                        <i class="fa-solid fa-flask"></i>
+                      </span>
+                      <span class="button-label">Fungible</span>
+                    </button>
                   </div>
                   <div class="saved-panel-buttons buttons">
                     <button id="export-items" class="button squircle-button is-link is-light" type="button">
-                      Exportar
+                      <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-file-export"></i></span>
+                      <span class="button-label">Exportar</span>
                     </button>
                     <button id="undo-delete" class="button squircle-button is-light" type="button" disabled>
-                      Deshacer
+                      <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-rotate-left"></i></span>
+                      <span class="button-label">Deshacer</span>
                     </button>
                   </div>
                 </div>
@@ -707,7 +806,8 @@
                       type="button"
                       disabled
                     >
-                      Dar de baja seleccionados
+                      <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-clipboard-check"></i></span>
+                      <span class="button-label">Dar de baja seleccionados</span>
                     </button>
                     <button
                       id="delete-selected"
@@ -715,7 +815,8 @@
                       type="button"
                       disabled
                     >
-                      Eliminar seleccionados
+                      <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-trash-can"></i></span>
+                      <span class="button-label">Eliminar seleccionados</span>
                     </button>
                     <button
                       id="print-labels"
@@ -723,14 +824,16 @@
                       type="button"
                       disabled
                     >
-                      Imprimir etiquetas
+                      <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-print"></i></span>
+                      <span class="button-label">Imprimir etiquetas</span>
                     </button>
                     <button
                       id="load-demo-items"
                       class="button squircle-button is-link is-light"
                       type="button"
                     >
-                      Cargar demo
+                      <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-seedling"></i></span>
+                      <span class="button-label">Cargar demo</span>
                     </button>
                   </div>
                 </div>
@@ -846,10 +949,12 @@
                   </div>
                   <div class="column is-full">
                     <button id="clear-filters" class="button squircle-button is-light" type="button" disabled>
-                      Limpiar filtros
+                      <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-broom"></i></span>
+                      <span class="button-label">Limpiar filtros</span>
                     </button>
                     <button id="import-items" class="button squircle-button is-primary is-light" type="button">
-                      Importar inventario
+                      <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-file-import"></i></span>
+                      <span class="button-label">Importar inventario</span>
                     </button>
                   </div>
                 </div>
@@ -925,9 +1030,10 @@
             </div>
           </div>
         </div>
-      </div>
-    </section>
-    <div id="item-detail-modal" class="modal">
+      </section>
+    </main>
+  </div>
+  <div id="item-detail-modal" class="modal">
       <div class="modal-background" data-close-modal></div>
       <div class="modal-card">
         <header class="modal-card-head">
@@ -944,10 +1050,12 @@
               <img id="detail-qr" alt="QR del item" />
               <div class="buttons is-centered mt-4">
                 <button id="edit-item" class="button squircle-button is-primary" type="button">
-                  Editar
+                  <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-pen-to-square"></i></span>
+                  <span class="button-label">Editar</span>
                 </button>
                 <button id="close-detail" class="button squircle-button" type="button" data-close-modal>
-                  Cerrar
+                  <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-circle-xmark"></i></span>
+                  <span class="button-label">Cerrar</span>
                 </button>
               </div>
             </div>
@@ -964,5 +1072,5 @@
       referrerpolicy="no-referrer"
     ></script>
     <script type="module" src="./src/renderer.js"></script>
-  </body>
+</body>
 </html>
