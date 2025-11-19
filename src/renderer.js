@@ -20,6 +20,18 @@ const detailFields = document.getElementById('detail-fields');
 const detailQr = document.getElementById('detail-qr');
 const detailTitle = document.getElementById('detail-title');
 const modalCloseControls = detailModal ? detailModal.querySelectorAll('[data-close-modal]') : [];
+const locationListButton = document.getElementById('generate-location-list');
+const locationListModal = document.getElementById('location-list-modal');
+const locationListContainer = document.getElementById('location-list-container');
+const locationListEmpty = document.getElementById('location-list-empty');
+const locationListDescription = document.getElementById('location-list-description');
+const copyLocationListButton = document.getElementById('copy-location-list');
+const downloadLocationListButton = document.getElementById('download-location-list');
+const locationListCloseControls = locationListModal
+  ? locationListModal.querySelectorAll('[data-close-location-modal]')
+  : [];
+const DEFAULT_LOCATION_LIST_MESSAGE =
+  'Selecciona items y usa el boton "Generar listado" para crear un resumen por ubicacion.';
 const rutInput = document.getElementById('input-rut');
 const serialInput = document.getElementById('input-noserie');
 const imageInput = document.getElementById('input-imagen');
@@ -203,6 +215,8 @@ let cachedItems = [];
 let displayedItems = [];
 let currentDetailItem = null;
 let editingState = null;
+let lastLocationListPlainText = '';
+let lastLocationReportEntries = [];
 const selectedItems = new Map();
 const filters = {};
 const DETAIL_HIGHLIGHT_CLASS = 'is-detail-highlight';
@@ -589,6 +603,9 @@ function updateSelectionUI() {
   if (printLabelsButton) {
     printLabelsButton.disabled = !hasSelection;
   }
+  if (locationListButton) {
+    locationListButton.disabled = !hasSelection;
+  }
 
   if (selectAllCheckbox) {
     if (totalItems === 0) {
@@ -827,6 +844,175 @@ function toggleSelection(serial, rowNumber, shouldSelect, row) {
   }
 
   updateSelectionUI();
+}
+
+function buildLocationListSummary(entries = []) {
+  const selection = Array.isArray(entries) ? entries : [];
+  const locationMap = new Map();
+  let totalUnits = 0;
+
+  selection.forEach((entry) => {
+    if (!entry) {
+      return;
+    }
+    const candidate = findCachedItem(entry.serial, entry.rowNumber);
+    if (!candidate) {
+      return;
+    }
+    const locationValue = candidate.Ubicacion ?? '';
+    const location = String(locationValue).trim() || 'Ubicacion sin especificar';
+    const locationKey = location.toLowerCase();
+    const nameValue = candidate.Nombre ?? '';
+    const name = String(nameValue).trim() || 'Item sin nombre';
+    const quantity = toPositiveInteger(candidate.Cantidad ?? 1, 1);
+
+    let locationRecord = locationMap.get(locationKey);
+    if (!locationRecord) {
+      locationRecord = {
+        location,
+        items: new Map(),
+      };
+      locationMap.set(locationKey, locationRecord);
+    }
+
+    const itemKey = name.toLowerCase();
+    const aggregatedItem = locationRecord.items.get(itemKey) || { name, quantity: 0 };
+    aggregatedItem.quantity += quantity;
+    locationRecord.items.set(itemKey, aggregatedItem);
+    totalUnits += quantity;
+  });
+
+  const summary = Array.from(locationMap.values())
+    .map((group) => ({
+      location: group.location,
+      items: Array.from(group.items.values()).sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+      ),
+    }))
+    .sort((a, b) => a.location.localeCompare(b.location, undefined, { sensitivity: 'base' }));
+
+  const plainText = summary
+    .map((group) => {
+      const lines = [group.location.toUpperCase()];
+      group.items.forEach((item) => {
+        lines.push(`- ${item.quantity} x ${item.name}`);
+      });
+      return lines.join('\n');
+    })
+    .join('\n\n');
+
+  return {
+    summary,
+    plainText,
+    totalUnits,
+  };
+}
+
+function updateLocationListDescription(summary, totalUnits) {
+  if (!locationListDescription) {
+    return;
+  }
+  if (!Array.isArray(summary) || summary.length === 0) {
+    locationListDescription.textContent = DEFAULT_LOCATION_LIST_MESSAGE;
+    return;
+  }
+  const locationCount = summary.length;
+  const locationLabel = locationCount === 1 ? 'ubicacion' : 'ubicaciones';
+  const unitsLabel = totalUnits === 1 ? 'unidad' : 'unidades';
+  locationListDescription.textContent = `Resumen de ${totalUnits} ${unitsLabel} en ${locationCount} ${locationLabel}.`;
+}
+
+function renderLocationList(summary = []) {
+  if (!locationListContainer || !locationListEmpty) {
+    return;
+  }
+
+  locationListContainer.innerHTML = '';
+
+  if (!Array.isArray(summary) || summary.length === 0) {
+    locationListContainer.classList.add('is-hidden');
+    locationListEmpty.classList.remove('is-hidden');
+    return;
+  }
+
+  locationListEmpty.classList.add('is-hidden');
+  locationListContainer.classList.remove('is-hidden');
+
+  summary.forEach((group) => {
+    const card = document.createElement('article');
+    card.classList.add('location-list-card');
+
+    const header = document.createElement('div');
+    header.classList.add('location-list-card-header');
+
+    const title = document.createElement('h3');
+    title.classList.add('location-list-title');
+    title.textContent = group.location;
+    header.appendChild(title);
+
+    const meta = document.createElement('span');
+    meta.classList.add('location-list-meta');
+    meta.textContent =
+      group.items.length === 1 ? '1 linea' : `${group.items.length} lineas`;
+    header.appendChild(meta);
+
+    card.appendChild(header);
+
+    const list = document.createElement('ul');
+    list.classList.add('location-list-items');
+
+    group.items.forEach((item) => {
+      const listItem = document.createElement('li');
+      listItem.classList.add('location-list-item');
+
+      const name = document.createElement('span');
+      name.classList.add('location-list-item-name');
+      name.textContent = item.name;
+      listItem.appendChild(name);
+
+      const quantity = document.createElement('span');
+      quantity.classList.add('location-list-item-qty');
+      quantity.textContent = String(item.quantity);
+      listItem.appendChild(quantity);
+
+      list.appendChild(listItem);
+    });
+
+    card.appendChild(list);
+    locationListContainer.appendChild(card);
+  });
+}
+
+function openLocationListModalWithSummary(summary, plainText, totalUnits, entriesPayload = []) {
+  if (!locationListModal) {
+    return;
+  }
+  renderLocationList(summary);
+  updateLocationListDescription(summary, totalUnits);
+  lastLocationListPlainText = plainText || '';
+  lastLocationReportEntries = Array.isArray(entriesPayload) ? entriesPayload : [];
+  if (copyLocationListButton) {
+    copyLocationListButton.disabled = !lastLocationListPlainText;
+  }
+  if (downloadLocationListButton) {
+    downloadLocationListButton.disabled = lastLocationReportEntries.length === 0;
+  }
+  locationListModal.classList.add('is-active');
+}
+
+function closeLocationListModal() {
+  if (!locationListModal) {
+    return;
+  }
+  locationListModal.classList.remove('is-active');
+  lastLocationReportEntries = [];
+  lastLocationListPlainText = '';
+  if (copyLocationListButton) {
+    copyLocationListButton.disabled = true;
+  }
+  if (downloadLocationListButton) {
+    downloadLocationListButton.disabled = true;
+  }
 }
 
 async function handleDecommissionAction(entries, options = {}) {
@@ -1078,6 +1264,76 @@ if (printLabelsButton) {
       showStatus('No se pudieron generar las etiquetas.', 'is-danger');
     } finally {
       updateSelectionUI();
+    }
+  });
+}
+
+if (locationListButton) {
+  locationListButton.addEventListener('click', () => {
+    const entries = getSelectedEntries();
+    if (entries.length === 0) {
+      showStatus('Selecciona al menos un item para generar el listado.', 'is-warning');
+      return;
+    }
+    const { summary, plainText, totalUnits } = buildLocationListSummary(entries);
+    if (!Array.isArray(summary) || summary.length === 0) {
+      showStatus('No se pudo generar el listado de ubicaciones.', 'is-warning');
+      return;
+    }
+    openLocationListModalWithSummary(summary, plainText, totalUnits, entries);
+  });
+}
+
+if (copyLocationListButton) {
+  copyLocationListButton.addEventListener('click', async () => {
+    if (!lastLocationListPlainText) {
+      return;
+    }
+    try {
+      if (!navigator?.clipboard?.writeText) {
+        throw new Error('Clipboard API not available');
+      }
+      await navigator.clipboard.writeText(lastLocationListPlainText);
+      showStatus('Listado copiado al portapapeles.', 'is-success');
+    } catch (error) {
+      console.error('Failed to copy location list', error);
+      showStatus('No se pudo copiar el listado.', 'is-danger');
+    }
+  });
+}
+
+if (downloadLocationListButton) {
+  downloadLocationListButton.addEventListener('click', async () => {
+    if (!Array.isArray(lastLocationReportEntries) || lastLocationReportEntries.length === 0) {
+      return;
+    }
+    try {
+      downloadLocationListButton.disabled = true;
+      showStatus('Generando PDF del listado...', 'is-info');
+      const result = await window.api.generateLocationReport(lastLocationReportEntries);
+      if (result?.canceled) {
+        showStatus('Generacion cancelada.', 'is-warning');
+        return;
+      }
+      const groupedCount = Number(result?.groupedLocations ?? 0);
+      const unitsCount = Number(result?.totalUnits ?? 0);
+      const baseMessage =
+        groupedCount > 0
+          ? `Se genero un PDF con ${groupedCount} ubicacion(es) y ${unitsCount} unidad(es).`
+          : 'Se genero un PDF con el listado seleccionado.';
+      const location = result?.filePath ? ` Guardado en ${result.filePath}.` : '';
+      showStatus(`${baseMessage}${location}`, 'is-success');
+      const missingCount = Number(result?.missing ?? 0);
+      if (missingCount > 0) {
+        showStatus(`No se pudieron incluir ${missingCount} registro(s).`, 'is-warning');
+      }
+    } catch (error) {
+      console.error('Failed to generate location report PDF', error);
+      showStatus('No se pudo generar el PDF del listado.', 'is-danger');
+    } finally {
+      if (Array.isArray(lastLocationReportEntries) && lastLocationReportEntries.length > 0) {
+        downloadLocationListButton.disabled = false;
+      }
     }
   });
 }
@@ -1523,10 +1779,19 @@ modalCloseControls.forEach((control) => {
   control.addEventListener('click', closeDetailModal);
 });
 
+locationListCloseControls.forEach((control) => {
+  control.addEventListener('click', closeLocationListModal);
+});
+
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') {
-    closeDetailModal();
+  if (event.key !== 'Escape') {
+    return;
   }
+  if (locationListModal && locationListModal.classList.contains('is-active')) {
+    closeLocationListModal();
+    return;
+  }
+  closeDetailModal();
 });
 
 function createItemRow(item) {

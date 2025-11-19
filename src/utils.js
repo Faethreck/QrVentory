@@ -5,7 +5,7 @@ import { access, writeFile as fsWriteFile } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import ExcelJS from 'exceljs';
 import QRCode from 'qrcode';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { deriveSerialBase, normalizeSerialValue } from './shared/serial.js';
 
 const EMPTY_PIXEL_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
@@ -367,6 +367,25 @@ const LABEL_MARGIN_X_PT = (LABEL_PAGE_WIDTH_PT - LABEL_COLUMNS * LABEL_WIDTH_PT)
 const LABEL_MARGIN_Y_PT = (LABEL_PAGE_HEIGHT_PT - LABEL_ROWS * LABEL_HEIGHT_PT) / 2;
 const QR_SIZE_RATIO = 0.9;
 const QR_SIZE_PT = Math.min(LABEL_WIDTH_PT, LABEL_HEIGHT_PT) * QR_SIZE_RATIO;
+const REPORT_PAGE_WIDTH_PT = mmToPoints(210);
+const REPORT_PAGE_HEIGHT_PT = mmToPoints(297);
+const REPORT_MARGIN_X_PT = mmToPoints(20);
+const REPORT_MARGIN_Y_PT = mmToPoints(20);
+const REPORT_CONTENT_WIDTH_PT = REPORT_PAGE_WIDTH_PT - 2 * REPORT_MARGIN_X_PT;
+const REPORT_LINE_GAP_PT = 4;
+const REPORT_SECTION_GAP_PT = 10;
+const REPORT_ITEM_INDENT_PT = mmToPoints(6);
+const REPORT_QR_SIZE_PT = mmToPoints(28);
+const REPORT_QR_GAP_PT = mmToPoints(6);
+const REPORT_QR_COLUMNS = 4;
+const REPORT_QR_LABEL_FONT_SIZE_PT = 8;
+const REPORT_QR_MAX_LABEL_LINES = 2;
+const REPORT_QR_LABEL_LINE_HEIGHT_PT = REPORT_QR_LABEL_FONT_SIZE_PT + 2;
+const REPORT_QR_ROW_HEIGHT_PT =
+  REPORT_QR_SIZE_PT +
+  REPORT_QR_LABEL_LINE_HEIGHT_PT * REPORT_QR_MAX_LABEL_LINES +
+  REPORT_QR_GAP_PT +
+  6;
 
 function normalizeOptionValue(raw, map) {
   if (raw == null) {
@@ -899,6 +918,365 @@ export async function generateLabelsPdf(sourcePath, rawEntries = [], destination
     printed: matchedItems.length,
     totalRequested,
     missing: missingEntries.length,
+  };
+}
+
+function wrapTextForWidth(text, font, size, maxWidth) {
+  const normalized = String(text ?? '');
+  if (!normalized) {
+    return [''];
+  }
+  const words = normalized.split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return [''];
+  }
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach((word) => {
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+    const candidateWidth = font.widthOfTextAtSize(candidate, size);
+    if (candidateWidth <= maxWidth || !currentLine) {
+      currentLine = candidate;
+    } else {
+      lines.push(currentLine);
+      currentLine = word;
+    }
+  });
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines.length > 0 ? lines : [''];
+}
+
+function resolveItemQuantity(value) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return Math.round(numeric);
+  }
+  return 1;
+}
+
+function extractItemName(item) {
+  const raw = item?.Nombre ?? '';
+  const text = String(raw).trim();
+  return text || 'Item sin nombre';
+}
+
+function extractLocationName(item) {
+  const raw = item?.Ubicacion ?? '';
+  const text = String(raw).trim();
+  return text || 'Ubicacion sin especificar';
+}
+
+function buildCompactQrLabel(item) {
+  const quantity = resolveItemQuantity(item?.Cantidad);
+  const name = extractItemName(item);
+  const baseLabel = `${quantity} x ${name}`;
+  if (baseLabel.length <= 32) {
+    return baseLabel;
+  }
+  return `${baseLabel.slice(0, 31)}…`;
+}
+
+function formatReportTimestamp(date) {
+  try {
+    return new Intl.DateTimeFormat('es-CL', {
+      dateStyle: 'long',
+    }).format(date);
+  } catch {
+    return date.toLocaleDateString();
+  }
+}
+
+export async function generateLocationReportPdf(sourcePath, rawEntries = [], destinationPath) {
+  if (!destinationPath) {
+    throw new Error('destinationPath is required');
+  }
+
+  const normalizedEntries = normalizeSelectionEntries(rawEntries);
+  const totalRequested = normalizedEntries.length;
+
+  if (totalRequested === 0) {
+    return { totalRequested: 0, missing: 0, groupedLocations: 0, totalUnits: 0, totalLines: 0 };
+  }
+
+  const allItems = await getAllItems(sourcePath);
+  if (allItems.length === 0) {
+    return {
+      totalRequested,
+      missing: totalRequested,
+      groupedLocations: 0,
+      totalUnits: 0,
+      totalLines: 0,
+    };
+  }
+
+  const serialMap = new Map();
+  const rowMap = new Map();
+  allItems.forEach((item) => {
+    const serial = normalizeSerial(item.NoSerie);
+    const rowNumber = normalizeRowNumber(item._rowNumber);
+    if (serial && !serialMap.has(serial)) {
+      serialMap.set(serial, item);
+    }
+    if (rowNumber != null && !rowMap.has(rowNumber)) {
+      rowMap.set(rowNumber, item);
+    }
+  });
+
+  const matchedItems = [];
+  const missingEntries = [];
+  const seenKeys = new Set();
+
+  normalizedEntries.forEach((entry) => {
+    let candidate = null;
+    if (entry.serial && serialMap.has(entry.serial)) {
+      candidate = serialMap.get(entry.serial);
+    }
+    if (!candidate && entry.rowNumber != null && rowMap.has(entry.rowNumber)) {
+      candidate = rowMap.get(entry.rowNumber);
+    }
+    if (!candidate) {
+      missingEntries.push(entry);
+      return;
+    }
+    const normalizedSerial = normalizeSerial(candidate.NoSerie);
+    const normalizedRow = normalizeRowNumber(candidate._rowNumber);
+    const key = `${normalizedSerial}|${normalizedRow ?? ''}`;
+    if (seenKeys.has(key)) {
+      return;
+    }
+    seenKeys.add(key);
+    matchedItems.push(candidate);
+  });
+
+  if (matchedItems.length === 0) {
+    return {
+      totalRequested,
+      missing: totalRequested,
+      groupedLocations: 0,
+      totalUnits: 0,
+      totalLines: 0,
+    };
+  }
+
+  const locationMap = new Map();
+  matchedItems.forEach((item) => {
+    const locationName = extractLocationName(item);
+    const locationKey = locationName.toLowerCase();
+    let locationEntry = locationMap.get(locationKey);
+    if (!locationEntry) {
+      locationEntry = {
+        location: locationName,
+        items: new Map(),
+        totalUnits: 0,
+      };
+      locationMap.set(locationKey, locationEntry);
+    }
+    const itemName = extractItemName(item);
+    const itemKey = itemName.toLowerCase();
+    const quantity = resolveItemQuantity(item.Cantidad);
+    const aggregatedItem = locationEntry.items.get(itemKey) || { name: itemName, quantity: 0 };
+    aggregatedItem.quantity += quantity;
+    locationEntry.items.set(itemKey, aggregatedItem);
+    locationEntry.totalUnits += quantity;
+  });
+
+  const groupedSummary = Array.from(locationMap.values())
+    .map((group) => ({
+      location: group.location,
+      totalUnits: group.totalUnits,
+      items: Array.from(group.items.values()).sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+      ),
+    }))
+    .sort((a, b) => a.location.localeCompare(b.location, undefined, { sensitivity: 'base' }));
+
+  const totalUnits = groupedSummary.reduce((accumulator, group) => accumulator + group.totalUnits, 0);
+  const totalLines = groupedSummary.reduce(
+    (accumulator, group) => accumulator + group.items.length,
+    0,
+  );
+  const qrPayloads = [];
+  for (const item of matchedItems) {
+    try {
+      const qrDataUrl = await generateQrForItem(item);
+      if (qrDataUrl) {
+        qrPayloads.push({ item, qrDataUrl });
+      }
+    } catch (error) {
+      console.error('Failed to generate QR for report item', error);
+    }
+  }
+
+  const pdfDoc = await PDFDocument.create();
+  const headingFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const bodyFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const accentColor = rgb(0.24, 0.32, 0.55);
+  const mutedColor = rgb(0.42, 0.45, 0.5);
+
+  let page = pdfDoc.addPage([REPORT_PAGE_WIDTH_PT, REPORT_PAGE_HEIGHT_PT]);
+  let cursorY = REPORT_PAGE_HEIGHT_PT - REPORT_MARGIN_Y_PT;
+
+  const ensureSpace = (spaceNeeded) => {
+    if (cursorY - spaceNeeded < REPORT_MARGIN_Y_PT) {
+      page = pdfDoc.addPage([REPORT_PAGE_WIDTH_PT, REPORT_PAGE_HEIGHT_PT]);
+      cursorY = REPORT_PAGE_HEIGHT_PT - REPORT_MARGIN_Y_PT;
+    }
+  };
+
+  const drawLines = (lines, { font = bodyFont, size = 11, color = rgb(0, 0, 0), indent = 0 } = {}) => {
+    const lineHeight = size + REPORT_LINE_GAP_PT;
+    lines.forEach((line) => {
+      ensureSpace(lineHeight);
+      page.drawText(line, {
+        x: REPORT_MARGIN_X_PT + indent,
+        y: cursorY - size,
+        size,
+        font,
+        color,
+      });
+      cursorY -= lineHeight;
+    });
+  };
+
+  const drawParagraph = (text, options = {}) => {
+    const font = options.font ?? bodyFont;
+    const size = options.size ?? 11;
+    const indent = options.indent ?? 0;
+    const maxWidth = Math.max(10, REPORT_CONTENT_WIDTH_PT - indent);
+    const lines = wrapTextForWidth(text, font, size, maxWidth);
+    drawLines(lines, { ...options, font, size, indent });
+  };
+
+  drawParagraph('Resumen por ubicacion', {
+    font: headingFont,
+    size: 20,
+    color: accentColor,
+  });
+  drawParagraph(
+    `Generado el ${formatReportTimestamp(new Date())} · ${groupedSummary.length} ubicacion(es) · ${totalUnits} unidad(es)`,
+    { size: 11, color: mutedColor },
+  );
+  cursorY -= REPORT_SECTION_GAP_PT;
+
+  groupedSummary.forEach((group, index) => {
+    drawParagraph(group.location, { font: headingFont, size: 15, color: accentColor });
+    drawParagraph(
+      `${group.items.length} linea(s) · ${group.totalUnits} unidad(es)`,
+      { size: 10, color: mutedColor },
+    );
+    cursorY -= REPORT_LINE_GAP_PT / 2;
+
+    group.items.forEach((item) => {
+      drawParagraph(`${item.quantity} x ${item.name}`, {
+        size: 12,
+        indent: REPORT_ITEM_INDENT_PT,
+      });
+    });
+
+    if (index < groupedSummary.length - 1) {
+      cursorY -= REPORT_SECTION_GAP_PT;
+    }
+  });
+
+  cursorY -= REPORT_SECTION_GAP_PT;
+  drawParagraph(
+    `Total seleccionado: ${matchedItems.length} registro(s) · ${totalLines} linea(s) · ${totalUnits} unidad(es)`,
+    { font: headingFont, size: 11 },
+  );
+
+  if (missingEntries.length > 0) {
+    drawParagraph(
+      `No se pudieron ubicar ${missingEntries.length} registro(s) en la planilla.`,
+      { size: 10, color: rgb(0.7, 0.25, 0.25) },
+    );
+  }
+
+  if (qrPayloads.length > 0) {
+    const startQrPage = (isContinuation = false) => {
+      page = pdfDoc.addPage([REPORT_PAGE_WIDTH_PT, REPORT_PAGE_HEIGHT_PT]);
+      cursorY = REPORT_PAGE_HEIGHT_PT - REPORT_MARGIN_Y_PT;
+      const headingText = isContinuation
+        ? 'Codigos QR de los items listados (continuacion)'
+        : 'Codigos QR de los items listados';
+      drawParagraph(headingText, { font: headingFont, size: 16, color: accentColor });
+      drawParagraph('Version compacta para referencia visual.', { size: 9, color: mutedColor });
+      cursorY -= REPORT_SECTION_GAP_PT;
+      return cursorY;
+    };
+
+    let qrRowTop = startQrPage(false);
+    let columnIndex = 0;
+
+    for (let index = 0; index < qrPayloads.length; index += 1) {
+      if (columnIndex >= REPORT_QR_COLUMNS) {
+        columnIndex = 0;
+        qrRowTop -= REPORT_QR_ROW_HEIGHT_PT;
+      }
+
+      if (qrRowTop - REPORT_QR_ROW_HEIGHT_PT < REPORT_MARGIN_Y_PT) {
+        qrRowTop = startQrPage(true);
+        columnIndex = 0;
+      }
+
+      const payload = qrPayloads[index];
+      let qrImage;
+      try {
+        qrImage = await pdfDoc.embedPng(payload.qrDataUrl);
+      } catch (error) {
+        console.error('Failed to embed QR for report item', error);
+        columnIndex += 1;
+        continue;
+      }
+
+      const x = REPORT_MARGIN_X_PT + columnIndex * (REPORT_QR_SIZE_PT + REPORT_QR_GAP_PT);
+      const imageY = qrRowTop - REPORT_QR_SIZE_PT;
+      page.drawImage(qrImage, {
+        x,
+        y: imageY,
+        width: REPORT_QR_SIZE_PT,
+        height: REPORT_QR_SIZE_PT,
+      });
+
+      const label = buildCompactQrLabel(payload.item);
+      const labelLines = wrapTextForWidth(
+        label,
+        bodyFont,
+        REPORT_QR_LABEL_FONT_SIZE_PT,
+        REPORT_QR_SIZE_PT,
+      ).slice(0, REPORT_QR_MAX_LABEL_LINES);
+      labelLines.forEach((line, lineIndex) => {
+        const labelY =
+          imageY -
+          4 -
+          REPORT_QR_LABEL_FONT_SIZE_PT -
+          lineIndex * REPORT_QR_LABEL_LINE_HEIGHT_PT;
+        page.drawText(line, {
+          x,
+          y: labelY,
+          size: REPORT_QR_LABEL_FONT_SIZE_PT,
+          font: bodyFont,
+          color: mutedColor,
+        });
+      });
+
+      columnIndex += 1;
+    }
+  }
+
+  const pdfBytes = await pdfDoc.save();
+  await fsWriteFile(destinationPath, pdfBytes);
+
+  return {
+    totalRequested,
+    missing: missingEntries.length,
+    groupedLocations: groupedSummary.length,
+    totalUnits,
+    totalLines,
   };
 }
 

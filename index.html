@@ -836,6 +836,15 @@
                       <span class="button-label">Imprimir etiquetas</span>
                     </button>
                     <button
+                      id="generate-location-list"
+                      class="button squircle-button is-info is-light"
+                      type="button"
+                      disabled
+                    >
+                      <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-clipboard-list"></i></span>
+                      <span class="button-label">Generar listado</span>
+                    </button>
+                    <button
                       id="load-demo-items"
                       class="button squircle-button is-link is-light"
                       type="button"
@@ -1069,6 +1078,38 @@
             </div>
           </div>
         </section>
+      </div>
+    </div>
+    <div id="location-list-modal" class="modal">
+      <div class="modal-background" data-close-location-modal></div>
+      <div class="modal-card location-list-modal-card">
+        <header class="modal-card-head">
+          <p class="modal-card-title">Listado por ubicacion</p>
+          <button class="delete" aria-label="close" data-close-location-modal></button>
+        </header>
+        <section class="modal-card-body">
+          <p id="location-list-description" class="location-list-description">
+            Selecciona items y usa el boton "Generar listado" para crear un resumen por ubicacion.
+          </p>
+          <div id="location-list-container" class="location-list is-hidden" aria-live="polite"></div>
+          <p id="location-list-empty" class="has-text-centered has-text-grey">
+            No hay items para mostrar.
+          </p>
+        </section>
+        <footer class="modal-card-foot is-justify-content-flex-end">
+          <button id="download-location-list" class="button squircle-button is-primary is-light" type="button" disabled>
+            <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-file-pdf"></i></span>
+            <span class="button-label">Descargar PDF</span>
+          </button>
+          <button id="copy-location-list" class="button squircle-button is-link is-light" type="button" disabled>
+            <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-copy"></i></span>
+            <span class="button-label">Copiar listado</span>
+          </button>
+          <button class="button squircle-button" type="button" data-close-location-modal>
+            <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-circle-xmark"></i></span>
+            <span class="button-label">Cerrar</span>
+          </button>
+        </footer>
       </div>
     </div>
 

@@ -230,6 +230,46 @@ ipcMain.handle('items:print-labels', async (_event, entries) => {
   }
 });
 
+ipcMain.handle('items:location-report', async (_event, entries) => {
+  try {
+    const browserWindow = BrowserWindow.getFocusedWindow();
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:]/g, '-')
+      .split('.')[0];
+    const defaultPath = path.join(
+      app.getPath('documents'),
+      `QrVentory-resumen-${timestamp}.pdf`,
+    );
+
+    const { canceled, filePath } = await dialog.showSaveDialog(browserWindow ?? undefined, {
+      title: 'Guardar listado por ubicacion',
+      defaultPath,
+      buttonLabel: 'Guardar',
+      filters: [
+        {
+          name: 'Documento PDF',
+          extensions: ['pdf'],
+        },
+      ],
+    });
+
+    if (canceled || !filePath) {
+      return { canceled: true, reason: 'user-cancelled' };
+    }
+
+    const result = await utils.generateLocationReportPdf(excelFilePath, entries, filePath);
+    return {
+      canceled: false,
+      filePath,
+      ...result,
+    };
+  } catch (error) {
+    console.error('Failed to generate location report PDF', error);
+    throw error;
+  }
+});
+
 ipcMain.handle('items:load-demo', async () => {
   try {
     const result = await utils.seedDemoItems(excelFilePath);
