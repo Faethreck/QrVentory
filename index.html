@@ -169,6 +169,30 @@
                   >
                     <form id="item-form">
                       <div class="columns is-multiline">
+                        <div class="column is-full">
+                          <div class="field">
+                            <div class="location-label-row">
+                              <label class="label" for="input-ubicacion">Ubicacion</label>
+                              <div
+                                class="location-quick-buttons"
+                                data-location-buttons
+                                role="group"
+                                aria-label="Ubicaciones rapidas"
+                              ></div>
+                            </div>
+                            <div class="control is-hidden location-input-control">
+                              <input
+                                id="input-ubicacion"
+                                class="input"
+                                type="text"
+                                placeholder="Ej: Biblioteca"
+                                data-field="Ubicacion"
+                                list="ubicacion-suggestions"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
                         <div class="column is-half">
                           <div class="field">
                             <label class="label" for="input-nombre">Nombre</label>
@@ -180,10 +204,57 @@
                                 required
                                 placeholder="Ej: Computador sala 5"
                                 data-field="Nombre"
+                                list="nombre-suggestions"
                               />
                             </div>
                           </div>
                         </div>
+
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="input-categoria">Categoria</label>
+                            <div class="control">
+                              <input
+                                id="input-categoria"
+                                class="input"
+                                type="text"
+                                placeholder="Ej: Tecnologia"
+                                data-field="Categoria"
+                                list="categoria-suggestions"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="input-proveedor">Proveedor</label>
+                            <div class="control">
+                              <input
+                                id="input-proveedor"
+                                class="input"
+                                type="text"
+                                placeholder="Proveedor o tienda"
+                                data-field="Proveedor"
+                                list="proveedor-suggestions"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="input-subvencion">Subvencion</label>
+                            <div class="control select is-fullwidth">
+                              <select id="input-subvencion" data-field="Subvencion">
+                                <option value="Aulas Conectadas">Aulas Conectadas</option>
+                                <option value="SEP" selected>SEP</option>
+                                <option value="General">General</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
                         <div class="column is-half">
                           <div class="field">
                             <label class="label" for="input-noserie">Numero de serie</label>
@@ -199,20 +270,6 @@
                           </div>
                         </div>
 
-                        <div class="column is-one-third">
-                          <div class="field">
-                            <label class="label" for="input-categoria">Categoria</label>
-                            <div class="control">
-                              <input
-                                id="input-categoria"
-                                class="input"
-                                type="text"
-                                placeholder="Ej: Tecnologia"
-                                data-field="Categoria"
-                              />
-                            </div>
-                          </div>
-                        </div>
                         <div class="column is-one-third column-tipo">
                           <div class="field">
                             <label class="label" for="input-tipo">Tipo</label>
@@ -220,18 +277,6 @@
                               <select id="input-tipo" data-field="Tipo">
                                 <option value="Tangible">Tangible</option>
                                 <option value="Fungible">Fungible</option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-                        <div class="column is-one-third">
-                          <div class="field">
-                            <label class="label" for="input-subvencion">Subvencion</label>
-                            <div class="control select is-fullwidth">
-                              <select id="input-subvencion" data-field="Subvencion">
-                                <option value="Aulas Conectadas">Aulas Conectadas</option>
-                                <option value="SEP">SEP</option>
-                                <option value="General">General</option>
                               </select>
                             </div>
                           </div>
@@ -252,6 +297,7 @@
                             </div>
                           </div>
                         </div>
+
                         <div class="column is-one-third">
                           <div class="field">
                             <label class="label" for="input-cantidad">Cantidad</label>
@@ -270,6 +316,7 @@
                             </p>
                           </div>
                         </div>
+
                         <div class="column is-one-third">
                           <div class="field">
                             <label class="label" for="input-fecha-ingreso">Fecha de ingreso</label>
@@ -286,20 +333,6 @@
 
                         <div class="column is-one-third">
                           <div class="field">
-                            <label class="label" for="input-proveedor">Proveedor</label>
-                            <div class="control">
-                              <input
-                                id="input-proveedor"
-                                class="input"
-                                type="text"
-                                placeholder="Proveedor o tienda"
-                                data-field="Proveedor"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        <div class="column is-one-third">
-                          <div class="field">
                             <label class="label" for="input-rut">RUT proveedor</label>
                             <div class="control">
                               <input
@@ -312,6 +345,7 @@
                             </div>
                           </div>
                         </div>
+
                         <div class="column is-one-third">
                           <div class="field">
                             <label class="label" for="input-factura">Numero de factura</label>
@@ -338,6 +372,7 @@
                             </div>
                           </div>
                         </div>
+
                         <div class="column is-one-third">
                           <div class="field">
                             <label class="label" for="input-responsable">Responsable</label>
@@ -348,20 +383,7 @@
                                 type="text"
                                 placeholder="Nombre del encargado"
                                 data-field="Responsable"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        <div class="column is-one-third">
-                          <div class="field">
-                            <label class="label" for="input-ubicacion">Ubicacion</label>
-                            <div class="control">
-                              <input
-                                id="input-ubicacion"
-                                class="input"
-                                type="text"
-                                placeholder="Ej: Biblioteca"
-                                data-field="Ubicacion"
+                                list="responsable-suggestions"
                               />
                             </div>
                           </div>
@@ -417,6 +439,14 @@
                         </div>
                       </div>
 
+                      <div class="datalist-pool" aria-hidden="true">
+                        <datalist id="nombre-suggestions"></datalist>
+                        <datalist id="categoria-suggestions"></datalist>
+                        <datalist id="proveedor-suggestions"></datalist>
+                        <datalist id="responsable-suggestions"></datalist>
+                        <datalist id="ubicacion-suggestions"></datalist>
+                      </div>
+
                       <div class="buttons is-right">
                         <button class="button squircle-button is-light" type="reset">
                           <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-eraser"></i></span>
@@ -444,6 +474,86 @@
                   >
                     <form id="batch-form">
                       <div class="columns is-multiline">
+                        <div class="column is-full">
+                          <div class="field">
+                            <div class="location-label-row">
+                              <label class="label" for="batch-ubicacion">Ubicacion</label>
+                              <div
+                                class="location-quick-buttons"
+                                data-location-buttons
+                                role="group"
+                                aria-label="Ubicaciones rapidas"
+                              ></div>
+                            </div>
+                            <div class="control is-hidden location-input-control">
+                              <input
+                                id="batch-ubicacion"
+                                class="input"
+                                type="text"
+                                data-batch-field="Ubicacion"
+                                list="ubicacion-suggestions"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="batch-nombre">Nombre base</label>
+                            <div class="control">
+                              <input
+                                id="batch-nombre"
+                                class="input"
+                                type="text"
+                                required
+                                placeholder="Ej: Silla de sala"
+                                data-batch-field="Nombre"
+                                list="nombre-suggestions"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="batch-categoria">Categoria</label>
+                            <div class="control">
+                              <input
+                                id="batch-categoria"
+                                class="input"
+                                type="text"
+                                data-batch-field="Categoria"
+                                list="categoria-suggestions"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-half">
+                          <div class="field">
+                            <label class="label" for="batch-proveedor">Proveedor</label>
+                            <div class="control">
+                              <input
+                                id="batch-proveedor"
+                                class="input"
+                                type="text"
+                                data-batch-field="Proveedor"
+                                list="proveedor-suggestions"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column is-one-third">
+                          <div class="field">
+                            <label class="label" for="batch-subvencion">Subvencion</label>
+                            <div class="control select is-fullwidth">
+                              <select id="batch-subvencion" data-batch-field="Subvencion">
+                                <option value="Aulas Conectadas">Aulas Conectadas</option>
+                                <option value="SEP" selected>SEP</option>
+                                <option value="General">General</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
                         <div class="column is-one-third">
                           <div class="field">
                             <label class="label" for="batch-count">Cantidad de items a crear</label>
@@ -489,35 +599,6 @@
                           </div>
                         </div>
 
-                        <div class="column is-half">
-                          <div class="field">
-                            <label class="label" for="batch-nombre">Nombre base</label>
-                            <div class="control">
-                              <input
-                                id="batch-nombre"
-                                class="input"
-                                type="text"
-                                required
-                                placeholder="Ej: Silla de sala"
-                                data-batch-field="Nombre"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        <div class="column is-half">
-                          <div class="field">
-                            <label class="label" for="batch-categoria">Categoria</label>
-                            <div class="control">
-                              <input
-                                id="batch-categoria"
-                                class="input"
-                                type="text"
-                                data-batch-field="Categoria"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
                         <div class="column is-one-third">
                           <div class="field">
                             <label class="label" for="batch-tipo">Tipo</label>
@@ -525,18 +606,6 @@
                               <select id="batch-tipo" data-batch-field="Tipo">
                                 <option value="Tangible">Tangible</option>
                                 <option value="Fungible">Fungible</option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-                        <div class="column is-one-third">
-                          <div class="field">
-                            <label class="label" for="batch-subvencion">Subvencion</label>
-                            <div class="control select is-fullwidth">
-                              <select id="batch-subvencion" data-batch-field="Subvencion">
-                                <option value="Aulas Conectadas">Aulas Conectadas</option>
-                                <option value="SEP">SEP</option>
-                                <option value="General">General</option>
                               </select>
                             </div>
                           </div>
@@ -556,7 +625,6 @@
                             </div>
                           </div>
                         </div>
-
                         <div class="column is-one-third">
                           <div class="field">
                             <label class="label" for="batch-cantidad">Cantidad por item</label>
@@ -600,20 +668,6 @@
                             </div>
                           </div>
                         </div>
-
-                        <div class="column is-half">
-                          <div class="field">
-                            <label class="label" for="batch-proveedor">Proveedor</label>
-                            <div class="control">
-                              <input
-                                id="batch-proveedor"
-                                class="input"
-                                type="text"
-                                data-batch-field="Proveedor"
-                              />
-                            </div>
-                          </div>
-                        </div>
                         <div class="column is-one-quarter">
                           <div class="field">
                             <label class="label" for="batch-rut">RUT proveedor</label>
@@ -640,7 +694,6 @@
                             </div>
                           </div>
                         </div>
-
                         <div class="column is-one-half">
                           <div class="field">
                             <label class="label" for="batch-responsable">Responsable</label>
@@ -650,19 +703,7 @@
                                 class="input"
                                 type="text"
                                 data-batch-field="Responsable"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        <div class="column is-one-half">
-                          <div class="field">
-                            <label class="label" for="batch-ubicacion">Ubicacion</label>
-                            <div class="control">
-                              <input
-                                id="batch-ubicacion"
-                                class="input"
-                                type="text"
-                                data-batch-field="Ubicacion"
+                                list="responsable-suggestions"
                               />
                             </div>
                           </div>
@@ -715,9 +756,9 @@
                             <img id="batch-image-preview" alt="Vista previa imagen" />
                           </div>
                         </div>
-                      </div>
+                        </div>
 
-                      <div class="buttons is-right">
+                        <div class="buttons is-right">
                         <button class="button squircle-button is-light" type="reset">
                           <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-broom"></i></span>
                           <span class="button-label">Limpiar</span>
@@ -818,6 +859,15 @@
                       <span class="button-label">Dar de baja seleccionados</span>
                     </button>
                     <button
+                      id="bulk-edit-selected"
+                      class="button squircle-button is-primary is-light"
+                      type="button"
+                      disabled
+                    >
+                      <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-pen-to-square"></i></span>
+                      <span class="button-label">Editar seleccionados</span>
+                    </button>
+                    <button
                       id="delete-selected"
                       class="button squircle-button is-danger is-light"
                       type="button"
@@ -846,12 +896,11 @@
                     </button>
                     <button
                       id="load-demo-items"
-                      class="button squircle-button is-link is-light"
+                      class="button squircle-button is-link is-light is-hidden"
                       type="button"
-                    >
-                      <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-seedling"></i></span>
-                      <span class="button-label">Cargar demo</span>
-                    </button>
+                      aria-hidden="true"
+                      tabindex="-1"
+                    ></button>
                   </div>
                 </div>
 
@@ -1075,11 +1124,240 @@
                   <span class="button-label">Cerrar</span>
                 </button>
               </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <div id="bulk-edit-modal" class="modal">
+    <div class="modal-background" data-close-bulk-edit></div>
+    <div class="modal-card">
+      <header class="modal-card-head">
+        <p class="modal-card-title">Edicion masiva</p>
+        <button class="delete" aria-label="close" data-close-bulk-edit></button>
+      </header>
+      <section class="modal-card-body">
+        <form id="bulk-edit-form">
+          <p class="bulk-edit-description">
+            Selecciona los campos que quieras actualizar y asigna su nuevo valor. Solo los campos
+            marcados se aplicaran a los items seleccionados.
+          </p>
+          <div class="bulk-edit-grid">
+            <div class="field bulk-edit-row">
+              <div class="bulk-edit-label">
+                <label class="checkbox bulk-edit-toggle">
+                  <input type="checkbox" data-bulk-apply="Ubicacion" />
+                  <span>Ubicacion</span>
+                </label>
+                <div
+                  class="location-quick-buttons"
+                  data-location-buttons
+                  role="group"
+                  aria-label="Ubicaciones rapidas"
+                ></div>
+              </div>
+              <div class="control">
+                <input
+                  id="bulk-ubicacion"
+                  class="input"
+                  type="text"
+                  data-bulk-field="Ubicacion"
+                  list="ubicacion-suggestions"
+                  placeholder="Ej: Biblioteca"
+                />
+              </div>
+            </div>
+
+            <div class="field bulk-edit-row">
+              <div class="bulk-edit-label">
+                <label class="checkbox bulk-edit-toggle">
+                  <input type="checkbox" data-bulk-apply="Nombre" />
+                  <span>Nombre</span>
+                </label>
+              </div>
+              <div class="control">
+                <input
+                  class="input"
+                  type="text"
+                  data-bulk-field="Nombre"
+                  list="nombre-suggestions"
+                  placeholder="Nuevo nombre"
+                />
+              </div>
+            </div>
+
+            <div class="field bulk-edit-row">
+              <div class="bulk-edit-label">
+                <label class="checkbox bulk-edit-toggle">
+                  <input type="checkbox" data-bulk-apply="Categoria" />
+                  <span>Categoria</span>
+                </label>
+              </div>
+              <div class="control">
+                <input
+                  class="input"
+                  type="text"
+                  data-bulk-field="Categoria"
+                  list="categoria-suggestions"
+                  placeholder="Nueva categoria"
+                />
+              </div>
+            </div>
+
+            <div class="field bulk-edit-row">
+              <div class="bulk-edit-label">
+                <label class="checkbox bulk-edit-toggle">
+                  <input type="checkbox" data-bulk-apply="Proveedor" />
+                  <span>Proveedor</span>
+                </label>
+              </div>
+              <div class="control">
+                <input
+                  class="input"
+                  type="text"
+                  data-bulk-field="Proveedor"
+                  list="proveedor-suggestions"
+                  placeholder="Nuevo proveedor"
+                />
+              </div>
+            </div>
+
+            <div class="field bulk-edit-row">
+              <div class="bulk-edit-label">
+                <label class="checkbox bulk-edit-toggle">
+                  <input type="checkbox" data-bulk-apply="Subvencion" />
+                  <span>Subvencion</span>
+                </label>
+              </div>
+              <div class="control select is-fullwidth">
+                <select data-bulk-field="Subvencion">
+                  <option value="">Mantener valor</option>
+                  <option value="Aulas Conectadas">Aulas Conectadas</option>
+                  <option value="SEP" selected>SEP</option>
+                  <option value="General">General</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field bulk-edit-row">
+              <div class="bulk-edit-label">
+                <label class="checkbox bulk-edit-toggle">
+                  <input type="checkbox" data-bulk-apply="Estado" />
+                  <span>Estado</span>
+                </label>
+              </div>
+              <div class="control select is-fullwidth">
+                <select data-bulk-field="Estado">
+                  <option value="">Mantener valor</option>
+                  <option value="Operativo">Operativo</option>
+                  <option value="En mantenimiento">En mantenimiento</option>
+                  <option value="Dado de baja">Dado de baja</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field bulk-edit-row">
+              <div class="bulk-edit-label">
+                <label class="checkbox bulk-edit-toggle">
+                  <input type="checkbox" data-bulk-apply="Nivel Educativo" />
+                  <span>Nivel educativo</span>
+                </label>
+              </div>
+              <div class="control select is-fullwidth">
+                <select data-bulk-field="Nivel Educativo">
+                  <option value="">Mantener valor</option>
+                  <option value="General">General</option>
+                  <option value="Educacion Basica">Educacion Basica</option>
+                  <option value="Educacion Media">Educacion Media</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field bulk-edit-row">
+              <div class="bulk-edit-label">
+                <label class="checkbox bulk-edit-toggle">
+                  <input type="checkbox" data-bulk-apply="Responsable" />
+                  <span>Responsable</span>
+                </label>
+              </div>
+              <div class="control">
+                <input
+                  class="input"
+                  type="text"
+                  data-bulk-field="Responsable"
+                  list="responsable-suggestions"
+                  placeholder="Nuevo responsable"
+                />
+              </div>
+            </div>
+
+            <div class="field bulk-edit-row">
+              <div class="bulk-edit-label">
+                <label class="checkbox bulk-edit-toggle">
+                  <input type="checkbox" data-bulk-apply="Notas" />
+                  <span>Notas</span>
+                </label>
+              </div>
+              <div class="control">
+                <textarea
+                  class="textarea"
+                  rows="2"
+                  data-bulk-field="Notas"
+                  placeholder="Texto que reemplazara las notas"
+                ></textarea>
+              </div>
             </div>
           </div>
-        </section>
-      </div>
+
+          <div class="buttons is-right mt-4">
+            <button class="button squircle-button is-light" type="button" data-close-bulk-edit>
+              <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-circle-xmark"></i></span>
+              <span class="button-label">Cancelar</span>
+            </button>
+            <button class="button squircle-button is-primary" type="submit">
+              <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-floppy-disk"></i></span>
+              <span class="button-label">Aplicar cambios</span>
+            </button>
+          </div>
+        </form>
+      </section>
     </div>
+  </div>
+  <div id="location-add-modal" class="modal">
+    <div class="modal-background" data-close-location-add></div>
+    <div class="modal-card">
+      <header class="modal-card-head">
+        <p class="modal-card-title">Agregar ubicacion</p>
+        <button class="delete" aria-label="close" data-close-location-add></button>
+      </header>
+      <section class="modal-card-body">
+        <form id="location-add-form">
+          <div class="field">
+            <label class="label" for="location-add-input">Nueva ubicacion</label>
+            <div class="control">
+              <input
+                id="location-add-input"
+                class="input"
+                type="text"
+                placeholder="Ej: Biblioteca"
+                list="ubicacion-suggestions"
+              />
+            </div>
+          </div>
+          <div class="buttons is-right mt-4">
+            <button class="button squircle-button is-light" type="button" data-close-location-add>
+              <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-circle-xmark"></i></span>
+              <span class="button-label">Cancelar</span>
+            </button>
+            <button class="button squircle-button is-primary" type="submit">
+              <span class="button-icon" aria-hidden="true"><i class="fa-solid fa-floppy-disk"></i></span>
+              <span class="button-label">Guardar ubicacion</span>
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </div>
     <div id="location-list-modal" class="modal">
       <div class="modal-background" data-close-location-modal></div>
       <div class="modal-card location-list-modal-card">
@@ -1116,7 +1394,6 @@
     <script
       defer
       src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"
-      integrity="sha512-fXPTB+jduCMsZ/HXXIQK5vCk1vZ1tcHTul3e8DqRL3OjaxAg/P6nxsVXniPdwWh05rq6ArtyTcwxHkYV+QJv3A=="
       crossorigin="anonymous"
       referrerpolicy="no-referrer"
     ></script>

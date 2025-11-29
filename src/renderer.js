@@ -47,14 +47,66 @@ const undoDeleteButton = document.getElementById('undo-delete');
 const exportButton = document.getElementById('export-items');
 const importButton = document.getElementById('import-items');
 const editItemButton = document.getElementById('edit-item');
+const bulkEditButton = document.getElementById('bulk-edit-selected');
 const filterInputs = document.querySelectorAll('[data-filter-key]');
 const clearFiltersButton = document.getElementById('clear-filters');
 const sortButtons = document.querySelectorAll('.table-sort-button');
 const formSubmitButton = singleForm ? singleForm.querySelector('button[type="submit"]') : null;
 const batchSubmitButton = batchForm ? batchForm.querySelector('button[type="submit"]') : null;
 const themeToggleButton = document.getElementById('theme-toggle');
+const locationQuickButtonGroups = document.querySelectorAll('[data-location-buttons]');
+const bulkEditModal = document.getElementById('bulk-edit-modal');
+const bulkEditForm = document.getElementById('bulk-edit-form');
+const bulkEditCloseControls = bulkEditModal
+  ? bulkEditModal.querySelectorAll('[data-close-bulk-edit]')
+  : [];
+const bulkEditApplyControls = bulkEditForm
+  ? bulkEditForm.querySelectorAll('[data-bulk-apply]')
+  : [];
+const bulkEditFieldElements = bulkEditForm
+  ? Array.from(bulkEditForm.querySelectorAll('[data-bulk-field]'))
+  : [];
+const bulkEditFieldMap = bulkEditFieldElements.reduce((accumulator, element) => {
+  const key = element.dataset.bulkField;
+  if (key) {
+    accumulator[key] = element;
+  }
+  return accumulator;
+}, {});
+const bulkEditApplyMap = Array.from(bulkEditApplyControls || []).reduce(
+  (accumulator, checkbox) => {
+    const key = checkbox.dataset.bulkApply;
+    if (key) {
+      accumulator[key] = checkbox;
+    }
+    return accumulator;
+  },
+  {},
+);
+const locationAddModal = document.getElementById('location-add-modal');
+const locationAddForm = document.getElementById('location-add-form');
+const locationAddInput = document.getElementById('location-add-input');
+const locationAddCloseControls = locationAddModal
+  ? locationAddModal.querySelectorAll('[data-close-location-add]')
+  : [];
+const suggestionLists = {
+  Nombre: document.getElementById('nombre-suggestions'),
+  Categoria: document.getElementById('categoria-suggestions'),
+  Proveedor: document.getElementById('proveedor-suggestions'),
+  Responsable: document.getElementById('responsable-suggestions'),
+  Ubicacion: document.getElementById('ubicacion-suggestions'),
+};
+let inlineSuggestionPool = {
+  Nombre: [],
+  Categoria: [],
+  Proveedor: [],
+  Responsable: [],
+  Ubicacion: [],
+};
 
 const THEME_STORAGE_KEY = 'qrventory-theme';
+const ACTIVE_LOCATION_STORAGE_KEY = 'qrventory-active-location';
+const SUGGESTION_LIMIT = 40;
 const prefersDarkScheme =
   typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     ? window.matchMedia('(prefers-color-scheme: dark)')
@@ -162,16 +214,34 @@ const batchFieldMap = batchFieldElements.reduce((accumulator, element) => {
   }
   return accumulator;
 }, {});
+const inlineSuggestionTargets = [
+  { element: singleFieldMap?.Nombre, key: 'Nombre' },
+  { element: singleFieldMap?.Categoria, key: 'Categoria' },
+  { element: singleFieldMap?.Proveedor, key: 'Proveedor' },
+  { element: singleFieldMap?.Responsable, key: 'Responsable' },
+  { element: singleFieldMap?.Ubicacion, key: 'Ubicacion' },
+  { element: batchFieldMap?.Nombre, key: 'Nombre' },
+  { element: batchFieldMap?.Categoria, key: 'Categoria' },
+  { element: batchFieldMap?.Proveedor, key: 'Proveedor' },
+  { element: batchFieldMap?.Responsable, key: 'Responsable' },
+  { element: batchFieldMap?.Ubicacion, key: 'Ubicacion' },
+  { element: bulkEditFieldMap?.Ubicacion, key: 'Ubicacion' },
+  { element: bulkEditFieldMap?.Nombre, key: 'Nombre' },
+  { element: bulkEditFieldMap?.Categoria, key: 'Categoria' },
+  { element: bulkEditFieldMap?.Proveedor, key: 'Proveedor' },
+  { element: bulkEditFieldMap?.Responsable, key: 'Responsable' },
+  { element: locationAddInput, key: 'Ubicacion' },
+];
 const FORM_FIELD_KEYS = [
   'Nombre',
-  'NoSerie',
   'Categoria',
-  'Tipo',
+  'Proveedor',
   'Subvencion',
+  'NoSerie',
+  'Tipo',
   'Nivel Educativo',
   'Cantidad',
   'Fecha Ingreso',
-  'Proveedor',
   'Rut',
   'NoFactura',
   'Estado',
@@ -211,6 +281,8 @@ const batchSerialPrefixInput = document.getElementById('batch-serial-prefix');
 const batchStartIndexInput = document.getElementById('batch-start-index');
 const batchRutInput = document.getElementById('batch-rut');
 
+let activeLocation = loadStoredActiveLocation();
+let locationStats = [];
 let cachedItems = [];
 let displayedItems = [];
 let currentDetailItem = null;
@@ -281,6 +353,450 @@ function normalizeText(value) {
 
 function cloneItem(item) {
   return item ? JSON.parse(JSON.stringify(item)) : null;
+}
+
+function safeFocus(element) {
+  if (!element || typeof element.focus !== 'function') {
+    return;
+  }
+  try {
+    element.focus({ preventScroll: true });
+  } catch {
+    try {
+      element.focus();
+    } catch {
+      // Ignore focus failures (hidden inputs, etc.)
+    }
+  }
+}
+
+function normalizeFieldValue(value) {
+  return String(value ?? '').trim();
+}
+
+function loadStoredActiveLocation() {
+  try {
+    return localStorage.getItem(ACTIVE_LOCATION_STORAGE_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function persistActiveLocationValue(value) {
+  try {
+    if (value) {
+      localStorage.setItem(ACTIVE_LOCATION_STORAGE_KEY, value);
+    } else {
+      localStorage.removeItem(ACTIVE_LOCATION_STORAGE_KEY);
+    }
+  } catch {
+    // Storage can fail silently (private mode, etc.)
+  }
+}
+
+function applyActiveLocationToForms({ force = false, allowEdit = false } = {}) {
+  if (!activeLocation) {
+    return;
+  }
+
+  const isEditMode = form && form.dataset.mode === 'edit';
+  const ubicationInput = singleFieldMap?.Ubicacion;
+  if (
+    ubicationInput &&
+    (!isEditMode || allowEdit) &&
+    (force || !ubicationInput.value)
+  ) {
+    ubicationInput.value = activeLocation;
+  }
+
+  const batchUbicationInput = batchFieldMap?.Ubicacion;
+  if (batchUbicationInput && (force || !batchUbicationInput.value)) {
+    batchUbicationInput.value = activeLocation;
+  }
+
+  const bulkUbicationInput = bulkEditFieldMap?.Ubicacion;
+  if (bulkUbicationInput && (force || !bulkUbicationInput.value)) {
+    bulkUbicationInput.value = activeLocation;
+  }
+}
+
+function setActiveLocation(
+  value,
+  { persist = true, propagate = true, allowEdit = false, force = false } = {},
+) {
+  activeLocation = normalizeFieldValue(value);
+
+  if (persist) {
+    persistActiveLocationValue(activeLocation);
+  }
+
+  if (propagate) {
+    applyActiveLocationToForms({ force, allowEdit });
+  }
+
+  renderLocationQuickButtons();
+}
+
+function renderDatalistOptions(datalist, values = []) {
+  if (!datalist) {
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  datalist.innerHTML = '';
+  const uniqueValues = Array.isArray(values) ? values.slice(0, SUGGESTION_LIMIT) : [];
+
+  uniqueValues.forEach((value) => {
+    const option = document.createElement('option');
+    option.value = value;
+    fragment.appendChild(option);
+  });
+
+  datalist.appendChild(fragment);
+}
+
+function collectUniqueFieldValues(items, key) {
+  const seen = new Set();
+  const values = [];
+
+  items.forEach((item) => {
+    const raw = normalizeFieldValue(item?.[key]);
+    if (!raw) {
+      return;
+    }
+    const normalized = normalizeText(raw);
+    if (seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    values.push(raw);
+  });
+
+  return values
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+    .slice(0, SUGGESTION_LIMIT);
+}
+
+function updateInlineSuggestionPool(values) {
+  inlineSuggestionPool = {
+    ...inlineSuggestionPool,
+    ...values,
+  };
+}
+
+function getInlineSuggestions(key) {
+  return Array.isArray(inlineSuggestionPool[key]) ? inlineSuggestionPool[key] : [];
+}
+
+function applyInlineSuggestion(input, key) {
+  if (!input) {
+    return;
+  }
+  const suggestions = getInlineSuggestions(key);
+  let caret = 0;
+  try {
+    caret = typeof input.selectionStart === 'number' ? input.selectionStart : input.value.length;
+  } catch {
+    caret = input.value.length;
+  }
+  const typed = input.value.slice(0, caret);
+  if (!typed) {
+    input.dataset.inlineBase = '';
+    input.dataset.inlineSuggestion = '';
+    return;
+  }
+
+  const match = suggestions.find(
+    (candidate) =>
+      typeof candidate === 'string' &&
+      candidate.toLowerCase().startsWith(typed.toLowerCase()) &&
+      candidate.length > typed.length,
+  );
+
+  if (match) {
+    input.value = match;
+    const start = typed.length;
+    const end = match.length;
+    try {
+      input.setSelectionRange(start, end);
+    } catch {
+      /* ignore selection errors */
+    }
+    input.dataset.inlineBase = typed;
+    input.dataset.inlineSuggestion = match;
+  } else {
+    input.dataset.inlineBase = '';
+    input.dataset.inlineSuggestion = '';
+  }
+}
+
+function attachInlineSuggestion(input, key) {
+  if (!input || !key || input.dataset.inlineSuggestionAttached === 'true') {
+    return;
+  }
+  input.dataset.inlineSuggestionAttached = 'true';
+
+  input.addEventListener('input', () => {
+    applyInlineSuggestion(input, key);
+  });
+
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Tab' && input.dataset.inlineSuggestion) {
+      event.preventDefault();
+      const suggestion = input.dataset.inlineSuggestion;
+      input.value = suggestion;
+      try {
+        input.setSelectionRange(suggestion.length, suggestion.length);
+      } catch {
+        /* ignore selection errors */
+      }
+      input.dataset.inlineSuggestion = '';
+      input.dataset.inlineBase = '';
+    }
+  });
+
+  input.addEventListener('focus', () => {
+    applyInlineSuggestion(input, key);
+  });
+}
+
+function computeLocationStats(items) {
+  const stats = new Map();
+
+  items.forEach((item) => {
+    const label = normalizeFieldValue(item?.Ubicacion);
+    if (!label) {
+      return;
+    }
+    const normalized = normalizeText(label);
+    const quantity = toPositiveInteger(item?.Cantidad, 1);
+    const existing = stats.get(normalized) || { label, count: 0 };
+    stats.set(normalized, {
+      label: existing.label,
+      count: existing.count + quantity,
+    });
+  });
+
+  return Array.from(stats.values()).sort(
+    (a, b) =>
+      b.count - a.count ||
+      a.label.localeCompare(b.label, undefined, {
+        sensitivity: 'base',
+      }),
+  );
+}
+
+function renderLocationQuickButtons() {
+  try {
+    if (!locationQuickButtonGroups || locationQuickButtonGroups.length === 0) {
+      return;
+    }
+
+    const seen = new Set();
+    const ordered = [];
+    const addLocation = (label) => {
+      const trimmed = normalizeFieldValue(label);
+      if (!trimmed) {
+        return;
+      }
+      const normalized = normalizeText(trimmed);
+      if (seen.has(normalized)) {
+        return;
+      }
+      seen.add(normalized);
+      ordered.push(trimmed);
+    };
+
+    locationStats.forEach((entry) => addLocation(entry.label));
+    if (activeLocation) {
+      addLocation(activeLocation);
+    }
+
+    const displayValues = ordered;
+
+    locationQuickButtonGroups.forEach((group) => {
+      group.innerHTML = '';
+      const fragment = document.createDocumentFragment();
+
+      const addButton = document.createElement('button');
+      addButton.type = 'button';
+      addButton.className =
+        'button squircle-button form-mode-button is-light location-quick-button location-quick-utility';
+      addButton.innerHTML =
+        '<span class="button-icon" aria-hidden="true"><i class="fa-solid fa-map-pin"></i></span><span class="button-label">Agregar ubicacion</span>';
+      addButton.addEventListener('click', () => {
+        if (typeof openLocationAddModal === 'function') {
+          openLocationAddModal();
+        }
+      });
+
+      const clearButton = document.createElement('button');
+      clearButton.type = 'button';
+      clearButton.className =
+        'button squircle-button form-mode-button is-light location-quick-button location-quick-utility';
+      clearButton.innerHTML =
+        '<span class="button-icon" aria-hidden="true"><i class="fa-solid fa-eraser"></i></span><span class="button-label">Limpiar</span>';
+      clearButton.addEventListener('click', () => {
+        setActiveLocation('');
+        const ubicationInput = singleFieldMap?.Ubicacion;
+        if (ubicationInput) {
+          ubicationInput.value = '';
+          safeFocus(ubicationInput);
+        }
+        const batchUbicationInput = batchFieldMap?.Ubicacion;
+        if (batchUbicationInput) {
+          batchUbicationInput.value = '';
+        }
+        const bulkUbicationInput = bulkEditFieldMap?.Ubicacion;
+        if (bulkUbicationInput) {
+          bulkUbicationInput.value = '';
+          const bulkCheckbox = bulkEditApplyMap?.Ubicacion;
+          if (bulkCheckbox) {
+            bulkCheckbox.checked = false;
+          }
+        }
+      });
+
+      if (displayValues.length === 0) {
+        const placeholder = document.createElement('span');
+        placeholder.classList.add('location-quick-empty');
+        placeholder.textContent = 'Sin ubicaciones previas.';
+        fragment.appendChild(placeholder);
+        fragment.appendChild(addButton);
+        fragment.appendChild(clearButton);
+        group.appendChild(fragment);
+        return;
+      }
+
+      displayValues.forEach((label) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'button squircle-button form-mode-button location-quick-button';
+        const isActive = normalizeText(label) === normalizeText(activeLocation);
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+        button.textContent = label;
+        button.addEventListener('click', () => {
+          setActiveLocation(label, { allowEdit: true, force: true });
+          const ubicationInput = singleFieldMap?.Ubicacion;
+          if (ubicationInput) {
+            ubicationInput.value = label;
+            safeFocus(ubicationInput);
+          }
+          const batchUbicationInput = batchFieldMap?.Ubicacion;
+          if (batchUbicationInput) {
+            batchUbicationInput.value = label;
+          }
+          const bulkUbicationInput = bulkEditFieldMap?.Ubicacion;
+          if (bulkUbicationInput) {
+            bulkUbicationInput.value = label;
+            const bulkCheckbox = bulkEditApplyMap?.Ubicacion;
+            if (bulkCheckbox) {
+              bulkCheckbox.checked = true;
+            }
+          }
+        });
+        fragment.appendChild(button);
+      });
+
+      fragment.appendChild(addButton);
+      fragment.appendChild(clearButton);
+      group.appendChild(fragment);
+    });
+  } catch (error) {
+    console.error('Failed to render location buttons', error);
+  }
+}
+
+function refreshFormSuggestionsFromItems(items) {
+  const safeItems = Array.isArray(items) ? items : [];
+
+  const suggestionValues = {
+    Nombre: collectUniqueFieldValues(safeItems, 'Nombre'),
+    Categoria: collectUniqueFieldValues(safeItems, 'Categoria'),
+    Proveedor: collectUniqueFieldValues(safeItems, 'Proveedor'),
+    Responsable: collectUniqueFieldValues(safeItems, 'Responsable'),
+    Ubicacion: collectUniqueFieldValues(safeItems, 'Ubicacion'),
+  };
+
+  const normalizedActive = normalizeText(activeLocation);
+  const hasActiveLocation = suggestionValues.Ubicacion.some(
+    (value) => normalizeText(value) === normalizedActive,
+  );
+  if (activeLocation && !hasActiveLocation) {
+    suggestionValues.Ubicacion.unshift(activeLocation);
+  }
+
+  Object.entries(suggestionLists).forEach(([field, datalist]) => {
+    renderDatalistOptions(datalist, suggestionValues[field]);
+  });
+
+  updateInlineSuggestionPool(suggestionValues);
+  inlineSuggestionTargets.forEach(({ element, key }) => attachInlineSuggestion(element, key));
+
+  locationStats = computeLocationStats(safeItems);
+  renderLocationQuickButtons();
+  applyActiveLocationToForms();
+}
+
+function resetBulkEditForm() {
+  if (!bulkEditForm) {
+    return;
+  }
+  bulkEditForm.reset();
+  bulkEditApplyControls.forEach((checkbox) => {
+    checkbox.checked = false;
+  });
+}
+
+function openLocationAddModal() {
+  if (!locationAddModal || !locationAddForm) {
+    return;
+  }
+  locationAddModal.classList.add('is-active');
+  locationAddModal.setAttribute('aria-hidden', 'false');
+  if (locationAddInput) {
+    locationAddInput.value = activeLocation || '';
+    try {
+      locationAddInput.focus({ preventScroll: true });
+    } catch {
+      locationAddInput.focus();
+    }
+  }
+}
+
+function closeLocationAddModal() {
+  if (!locationAddModal) {
+    return;
+  }
+  locationAddModal.classList.remove('is-active');
+  locationAddModal.setAttribute('aria-hidden', 'true');
+}
+
+function openBulkEditModal() {
+  if (!bulkEditModal || !bulkEditButton) {
+    return;
+  }
+  bulkEditModal.classList.add('is-active');
+  bulkEditModal.setAttribute('aria-hidden', 'false');
+  applyActiveLocationToForms({ force: true, allowEdit: true });
+  const focusTarget = bulkEditModal.querySelector('input, select, textarea');
+  if (focusTarget) {
+    try {
+      focusTarget.focus({ preventScroll: true });
+    } catch {
+      focusTarget.focus();
+    }
+  }
+}
+
+function closeBulkEditModal() {
+  if (!bulkEditModal) {
+    return;
+  }
+  resetBulkEditForm();
+  bulkEditModal.classList.remove('is-active');
+  bulkEditModal.setAttribute('aria-hidden', 'true');
 }
 
 function setActiveMainTab(tab) {
@@ -602,6 +1118,9 @@ function updateSelectionUI() {
   }
   if (printLabelsButton) {
     printLabelsButton.disabled = !hasSelection;
+  }
+  if (bulkEditButton) {
+    bulkEditButton.disabled = !hasSelection;
   }
   if (locationListButton) {
     locationListButton.disabled = !hasSelection;
@@ -1221,6 +1740,16 @@ if (decommissionButton) {
   });
 }
 
+if (bulkEditButton) {
+  bulkEditButton.addEventListener('click', () => {
+    if (selectedItems.size === 0) {
+      showStatus('Selecciona al menos un item para editar.', 'is-warning');
+      return;
+    }
+    openBulkEditModal();
+  });
+}
+
 if (printLabelsButton) {
   printLabelsButton.addEventListener('click', async () => {
     const entries = getSelectedEntries();
@@ -1643,6 +2172,7 @@ function resetForm() {
   if (serialInput) {
     serialInput.value = '';
   }
+  applyActiveLocationToForms({ force: true });
 }
 
 function collectBatchBaseItem() {
@@ -1684,6 +2214,7 @@ function resetBatchForm() {
     batchForm.reset();
   }
   resetImageInput(batchImageContext);
+  applyActiveLocationToForms({ force: true });
 }
 
 function highlightRowBySerial(serial) {
@@ -1899,6 +2430,7 @@ function renderItems(items) {
   }
 
   const normalizedItems = Array.isArray(cachedItems) ? cachedItems : [];
+  refreshFormSuggestionsFromItems(normalizedItems);
   const availableKeys = new Set();
 
   normalizedItems.forEach((item) => {
@@ -2019,6 +2551,160 @@ function formatRutValue(raw) {
   }
 
   return `${formattedBody}-${expectedCheckDigit}`;
+}
+
+const ubicacionInput = singleFieldMap?.Ubicacion;
+if (ubicacionInput) {
+  ubicacionInput.addEventListener('input', () => {
+    if (form && form.dataset.mode === 'edit') {
+      return;
+    }
+    setActiveLocation(ubicacionInput.value || '', { propagate: false });
+  });
+}
+
+const batchUbicacionInput = batchFieldMap?.Ubicacion;
+if (batchUbicacionInput) {
+  batchUbicacionInput.addEventListener('input', () => {
+    setActiveLocation(batchUbicacionInput.value || '');
+  });
+}
+
+const bulkUbicacionInput = bulkEditFieldMap?.Ubicacion;
+if (bulkUbicacionInput) {
+  bulkUbicacionInput.addEventListener('input', () => {
+    setActiveLocation(bulkUbicacionInput.value || '', { allowEdit: true, propagate: false });
+  });
+}
+
+bulkEditApplyControls.forEach((checkbox) => {
+  const key = checkbox.dataset.bulkApply;
+  const targetField = key ? bulkEditFieldMap?.[key] : null;
+  if (targetField) {
+    targetField.addEventListener('input', () => {
+      checkbox.checked = true;
+    });
+  }
+});
+
+if (bulkEditCloseControls && bulkEditCloseControls.length > 0) {
+  bulkEditCloseControls.forEach((control) => {
+    control.addEventListener('click', () => {
+      closeBulkEditModal();
+    });
+  });
+}
+
+if (locationAddCloseControls && locationAddCloseControls.length > 0) {
+  locationAddCloseControls.forEach((control) => {
+    control.addEventListener('click', () => {
+      closeLocationAddModal();
+    });
+  });
+}
+
+if (locationAddForm) {
+  locationAddForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const value = locationAddInput ? locationAddInput.value.trim() : '';
+    if (!value) {
+      showStatus('Ingresa un nombre de ubicacion.', 'is-warning');
+      return;
+    }
+    setActiveLocation(value, { allowEdit: true, force: true });
+    closeLocationAddModal();
+  });
+}
+
+if (bulkEditForm) {
+  bulkEditForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (selectedItems.size === 0) {
+      showStatus('Selecciona al menos un item para editar.', 'is-warning');
+      return;
+    }
+
+    const updates = {};
+    Object.entries(bulkEditFieldMap).forEach(([key, element]) => {
+      const checkbox = bulkEditApplyMap[key];
+      if (!checkbox || !checkbox.checked) {
+        return;
+      }
+      let value = element.value ?? '';
+      if (typeof value === 'string') {
+        value = value.trim();
+      }
+      updates[key] = value;
+    });
+
+    if (Object.keys(updates).length === 0) {
+      showStatus('Activa y completa al menos un campo para editar.', 'is-warning');
+      return;
+    }
+
+    const entries = getSelectedEntries();
+    if (entries.length === 0) {
+      showStatus('No se encontraron items seleccionados.', 'is-warning');
+      return;
+    }
+
+    try {
+      if (bulkEditButton) {
+        bulkEditButton.disabled = true;
+      }
+      const submitButton = bulkEditForm.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.disabled = true;
+      }
+      showStatus('Actualizando items seleccionados...', 'is-info');
+
+      let updatedCount = 0;
+      for (const entry of entries) {
+        const currentItem = findCachedItem(entry.serial, entry.rowNumber);
+        if (!currentItem) {
+          continue;
+        }
+        const nextItem = { ...currentItem, ...updates };
+        if (entry.serial) {
+          nextItem.NoSerie = entry.serial;
+        }
+        const result = await window.api.updateItem({
+          target: entry,
+          item: nextItem,
+        });
+        const count = Number(result?.updated ?? 0);
+        if (count > 0) {
+          updatedCount += 1;
+        }
+      }
+
+      if (updates.Ubicacion) {
+        setActiveLocation(updates.Ubicacion, { allowEdit: true, force: true });
+      }
+
+      if (updatedCount > 0) {
+        showStatus(
+          `Se actualizaron ${updatedCount} ${updatedCount === 1 ? 'item' : 'items'}.`,
+          'is-success',
+        );
+        closeBulkEditModal();
+        await refreshItems();
+      } else {
+        showStatus('No se actualizaron items seleccionados.', 'is-warning');
+      }
+    } catch (error) {
+      console.error('Failed to apply bulk edit', error);
+      showStatus('No se pudo aplicar la edicion masiva.', 'is-danger');
+    } finally {
+      if (bulkEditButton) {
+        bulkEditButton.disabled = selectedItems.size === 0;
+      }
+      const submitButton = bulkEditForm.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.disabled = false;
+      }
+    }
+  });
 }
 
 if (rutInput) {
@@ -2204,6 +2890,8 @@ if (batchForm) {
 setActiveMainTab('register');
 setActiveFormMode('single');
 setInventoryScope(SCOPE_GENERAL);
+renderLocationQuickButtons();
+applyActiveLocationToForms({ force: true });
 refreshItems();
 
 

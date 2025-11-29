@@ -971,6 +971,12 @@ body {
   font-weight: 600;
 }
 
+.input::selection,
+.textarea::selection {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--color-text);
+}
+
 .main-tab-panel .label {
   color: var(--label-color);
 }
@@ -1482,6 +1488,95 @@ body {
 
 .form-section .field:not(:last-child) {
   margin-bottom: 0.85rem;
+}
+
+.location-label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+
+.location-quick-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.location-quick-button {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+  transform: none;
+}
+
+.location-quick-button.is-active {
+  box-shadow: 0 10px 28px rgba(118, 138, 202, 0.35);
+}
+
+.location-quick-utility {
+  --btn-bg: var(--tonal-button-background);
+  --btn-border: var(--tonal-button-border);
+  --btn-hover-bg: var(--tonal-button-hover-background);
+  --btn-active-bg: var(--tonal-button-active-background);
+  color: var(--color-text);
+}
+
+.location-quick-button:hover,
+.location-quick-button:focus-visible,
+.location-quick-button:active {
+  transform: none;
+}
+
+.location-quick-button .button-icon,
+.location-quick-button:hover .button-icon,
+.location-quick-button:focus-visible .button-icon,
+.location-quick-button:active .button-icon {
+  transform: none;
+}
+
+.location-quick-empty {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.datalist-pool {
+  display: contents;
+}
+
+.bulk-edit-description {
+  margin-bottom: 1rem;
+  color: var(--color-muted);
+}
+
+.bulk-edit-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+@media (min-width: 720px) {
+  .bulk-edit-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.bulk-edit-row {
+  padding: 0.85rem;
+  border: 1px dashed var(--panel-border-color);
+  border-radius: 12px;
+  background: rgba(100, 122, 174, 0.08);
+}
+
+.bulk-edit-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.bulk-edit-toggle input {
+  margin-right: 0.4rem;
 }
 
 .form-section--qr {
