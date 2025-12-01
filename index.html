@@ -4,6 +4,10 @@
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' data: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self';"
+    />
     <title>QrVentory</title>
     <link
       rel="stylesheet"
@@ -937,6 +941,19 @@
                   </div>
                   <div class="column is-one-quarter">
                     <div class="field">
+                      <label class="label" for="filter-proveedor">Proveedor</label>
+                      <div class="control">
+                        <input
+                          id="filter-proveedor"
+                          class="input"
+                          type="text"
+                          data-filter-key="Proveedor"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="column is-one-quarter">
+                    <div class="field">
                       <label class="label" for="filter-subvencion">Subvencion</label>
                       <div class="control">
                         <input
@@ -1047,6 +1064,11 @@
                         <th>
                           <button class="table-sort-button" data-sort-key="Categoria" type="button">
                             Categoria
+                          </button>
+                        </th>
+                        <th>
+                          <button class="table-sort-button" data-sort-key="Proveedor" type="button">
+                            Proveedor
                           </button>
                         </th>
                         <th>

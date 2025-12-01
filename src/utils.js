@@ -387,6 +387,30 @@ const REPORT_QR_ROW_HEIGHT_PT =
   REPORT_QR_GAP_PT +
   6;
 
+const formatDateWithTime = (date = new Date()) => {
+  const pad = (value) => String(value).padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  const seconds = pad(date.getSeconds());
+  const offsetMinutes = -date.getTimezoneOffset();
+  const offsetSign = offsetMinutes >= 0 ? '+' : '-';
+  const offsetHours = pad(Math.floor(Math.abs(offsetMinutes) / 60));
+  const offsetRemainder = pad(Math.abs(offsetMinutes) % 60);
+
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offsetSign}${offsetHours}:${offsetRemainder}`;
+};
+
+const ensureFechaIngresoValue = (rawValue) => {
+  if (rawValue === undefined || rawValue === null) {
+    return formatDateWithTime();
+  }
+  const trimmed = String(rawValue).trim();
+  return trimmed || formatDateWithTime();
+};
+
 function normalizeOptionValue(raw, map) {
   if (raw == null) {
     return '';
@@ -660,6 +684,7 @@ export async function generateQrForItem(rawItem) {
 
 export async function saveItemAndGenerateQR(filePath, rawItem) {
   const item = normalizeItem(rawItem);
+  item['Fecha Ingreso'] = ensureFechaIngresoValue(item['Fecha Ingreso']);
   const { workbook, sheet } = await ensureWorkbook(filePath);
 
   const existingSerials = new Set();
@@ -876,6 +901,38 @@ export async function generateLabelsPdf(sourcePath, rawEntries = [], destination
   if (matchedItems.length === 0) {
     return { printed: 0, totalRequested, missing: totalRequested };
   }
+
+  const compareByInsertionOrder = (itemA, itemB) => {
+    const rowA = normalizeRowNumber(itemA?._rowNumber);
+    const rowB = normalizeRowNumber(itemB?._rowNumber);
+    if (rowA != null && rowB != null && rowA !== rowB) {
+      return rowA - rowB;
+    }
+    if (rowA != null) {
+      return -1;
+    }
+    if (rowB != null) {
+      return 1;
+    }
+
+    const dateA = Date.parse(itemA?.['Fecha Ingreso']);
+    const dateB = Date.parse(itemB?.['Fecha Ingreso']);
+    if (!Number.isNaN(dateA) && !Number.isNaN(dateB) && dateA !== dateB) {
+      return dateA - dateB;
+    }
+
+    const serialA = normalizeSerial(itemA?.NoSerie);
+    const serialB = normalizeSerial(itemB?.NoSerie);
+    if (serialA && serialB && serialA !== serialB) {
+      return serialA.localeCompare(serialB);
+    }
+
+    const nameA = (itemA?.Nombre || '').toLowerCase();
+    const nameB = (itemB?.Nombre || '').toLowerCase();
+    return nameA.localeCompare(nameB);
+  };
+
+  matchedItems.sort(compareByInsertionOrder);
 
   const pdfDoc = await PDFDocument.create();
   const pageSize = [LABEL_PAGE_WIDTH_PT, LABEL_PAGE_HEIGHT_PT];
@@ -1722,6 +1779,7 @@ export async function saveItemsBatch(filePath, rawItems = []) {
   const savedItems = [];
   pendingItems.forEach((entry) => {
     const normalized = normalizeItem(entry);
+    normalized['Fecha Ingreso'] = ensureFechaIngresoValue(normalized['Fecha Ingreso']);
     const fallbackPrefixRaw = normalized.Nombre
       ? normalized.Nombre.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4)
       : '';

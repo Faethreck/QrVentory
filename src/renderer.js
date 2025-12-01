@@ -106,7 +106,10 @@ let inlineSuggestionPool = {
 
 const THEME_STORAGE_KEY = 'qrventory-theme';
 const ACTIVE_LOCATION_STORAGE_KEY = 'qrventory-active-location';
+const LOCATION_USAGE_STORAGE_KEY = 'qrventory-location-usage';
+const LOCATION_BUTTONS_EXPANDED_STORAGE_KEY = 'qrventory-location-buttons-expanded';
 const SUGGESTION_LIMIT = 40;
+const LOCATION_VISIBLE_LIMIT = 6;
 const prefersDarkScheme =
   typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     ? window.matchMedia('(prefers-color-scheme: dark)')
@@ -254,6 +257,7 @@ const TABLE_FIELD_KEYS = [
   'NoSerie',
   'Nombre',
   'Categoria',
+  'Proveedor',
   'Tipo',
   'Subvencion',
   'Nivel Educativo',
@@ -282,6 +286,8 @@ const batchStartIndexInput = document.getElementById('batch-start-index');
 const batchRutInput = document.getElementById('batch-rut');
 
 let activeLocation = loadStoredActiveLocation();
+let locationUsage = loadLocationUsageCounts();
+let locationButtonsExpanded = loadStoredLocationButtonsExpanded();
 let locationStats = [];
 let cachedItems = [];
 let displayedItems = [];
@@ -392,6 +398,84 @@ function persistActiveLocationValue(value) {
   } catch {
     // Storage can fail silently (private mode, etc.)
   }
+}
+
+function loadLocationUsageCounts() {
+  try {
+    const raw = localStorage.getItem(LOCATION_USAGE_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!Array.isArray(parsed)) {
+      return new Map();
+    }
+    const map = new Map();
+    parsed.forEach((entry) => {
+      if (!entry) {
+        return;
+      }
+      const normalized = typeof entry.key === 'string' ? entry.key : normalizeText(entry.label);
+      if (!normalized) {
+        return;
+      }
+      const label = normalizeFieldValue(entry.label || '');
+      const usage = Number.isInteger(entry.usage) && entry.usage > 0 ? entry.usage : 0;
+      map.set(normalized, { label, usage });
+    });
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
+function persistLocationUsageCounts(map) {
+  if (!(map instanceof Map)) {
+    return;
+  }
+  try {
+    const payload = Array.from(map.entries()).map(([key, value]) => ({
+      key,
+      label: value?.label || '',
+      usage: Number.isInteger(value?.usage) ? value.usage : 0,
+    }));
+    localStorage.setItem(LOCATION_USAGE_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    /* ignore storage failures */
+  }
+}
+
+function loadStoredLocationButtonsExpanded() {
+  try {
+    return localStorage.getItem(LOCATION_BUTTONS_EXPANDED_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function persistLocationButtonsExpanded(value) {
+  try {
+    localStorage.setItem(LOCATION_BUTTONS_EXPANDED_STORAGE_KEY, value ? 'true' : 'false');
+  } catch {
+    /* ignore storage failures */
+  }
+}
+
+function setLocationButtonsExpanded(value) {
+  locationButtonsExpanded = Boolean(value);
+  persistLocationButtonsExpanded(locationButtonsExpanded);
+  renderLocationQuickButtons();
+}
+
+function bumpLocationUsage(label) {
+  const normalized = normalizeText(label);
+  const trimmed = normalizeFieldValue(label);
+  if (!normalized) {
+    return;
+  }
+  const existing = locationUsage.get(normalized) || { label: trimmed, usage: 0 };
+  locationUsage.set(normalized, {
+    label: trimmed || existing.label || '',
+    usage: (existing.usage || 0) + 1,
+  });
+  persistLocationUsageCounts(locationUsage);
 }
 
 function applyActiveLocationToForms({ force = false, allowEdit = false } = {}) {
@@ -592,27 +676,58 @@ function renderLocationQuickButtons() {
       return;
     }
 
-    const seen = new Set();
-    const ordered = [];
-    const addLocation = (label) => {
+    const recordsMap = new Map();
+    const addRecord = (label, count = 0) => {
       const trimmed = normalizeFieldValue(label);
       if (!trimmed) {
         return;
       }
       const normalized = normalizeText(trimmed);
-      if (seen.has(normalized)) {
-        return;
-      }
-      seen.add(normalized);
-      ordered.push(trimmed);
+      const usageRecord =
+        locationUsage instanceof Map ? locationUsage.get(normalized) : null;
+      const base = recordsMap.get(normalized) || { label: trimmed, count: 0, usage: 0 };
+      recordsMap.set(normalized, {
+        label: usageRecord?.label || base.label || trimmed,
+        count: Math.max(base.count, toPositiveInteger(count, 0)),
+        usage: Math.max(base.usage, toPositiveInteger(usageRecord?.usage, 0)),
+      });
     };
 
-    locationStats.forEach((entry) => addLocation(entry.label));
+    locationStats.forEach((entry) => addRecord(entry.label, entry.count));
+    if (locationUsage instanceof Map) {
+      locationUsage.forEach((value, key) => {
+        addRecord(value?.label || key, 0);
+      });
+    }
     if (activeLocation) {
-      addLocation(activeLocation);
+      addRecord(activeLocation, 0);
     }
 
-    const displayValues = ordered;
+    let records = Array.from(recordsMap.values()).sort(
+      (a, b) =>
+        b.usage - a.usage ||
+        b.count - a.count ||
+        a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }),
+    );
+
+    const activeNormalized = normalizeText(activeLocation);
+    if (!locationButtonsExpanded && activeNormalized) {
+      const index = records.findIndex(
+        (entry) => normalizeText(entry.label) === activeNormalized,
+      );
+      if (index >= LOCATION_VISIBLE_LIMIT) {
+        const [selected] = records.splice(index, 1);
+        records.unshift(selected);
+      }
+    }
+
+    const visibleRecords = locationButtonsExpanded
+      ? records
+      : records.slice(0, LOCATION_VISIBLE_LIMIT);
+    const hiddenCount = locationButtonsExpanded
+      ? 0
+      : Math.max(records.length - visibleRecords.length, 0);
+    const showToggle = records.length > LOCATION_VISIBLE_LIMIT || locationButtonsExpanded;
 
     locationQuickButtonGroups.forEach((group) => {
       group.innerHTML = '';
@@ -657,7 +772,7 @@ function renderLocationQuickButtons() {
         }
       });
 
-      if (displayValues.length === 0) {
+      if (records.length === 0) {
         const placeholder = document.createElement('span');
         placeholder.classList.add('location-quick-empty');
         placeholder.textContent = 'Sin ubicaciones previas.';
@@ -668,7 +783,23 @@ function renderLocationQuickButtons() {
         return;
       }
 
-      displayValues.forEach((label) => {
+      if (showToggle && (hiddenCount > 0 || locationButtonsExpanded)) {
+        const toggleButton = document.createElement('button');
+        toggleButton.type = 'button';
+        toggleButton.className =
+          'button squircle-button form-mode-button is-light location-quick-button location-quick-utility';
+        const icon = locationButtonsExpanded ? 'fa-chevron-up' : 'fa-chevron-down';
+        const label = locationButtonsExpanded
+          ? 'Ocultar ubicaciones'
+          : `Mostrar ${hiddenCount} mas`;
+        toggleButton.innerHTML = `<span class="button-icon" aria-hidden="true"><i class="fa-solid ${icon}"></i></span><span class="button-label">${label}</span>`;
+        toggleButton.addEventListener('click', () => {
+          setLocationButtonsExpanded(!locationButtonsExpanded);
+        });
+        fragment.appendChild(toggleButton);
+      }
+
+      visibleRecords.forEach(({ label }) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'button squircle-button form-mode-button location-quick-button';
@@ -677,6 +808,7 @@ function renderLocationQuickButtons() {
         button.setAttribute('aria-pressed', String(isActive));
         button.textContent = label;
         button.addEventListener('click', () => {
+          bumpLocationUsage(label);
           setActiveLocation(label, { allowEdit: true, force: true });
           const ubicationInput = singleFieldMap?.Ubicacion;
           if (ubicationInput) {
@@ -694,6 +826,9 @@ function renderLocationQuickButtons() {
             if (bulkCheckbox) {
               bulkCheckbox.checked = true;
             }
+          }
+          if (locationButtonsExpanded) {
+            setLocationButtonsExpanded(false);
           }
         });
         fragment.appendChild(button);
