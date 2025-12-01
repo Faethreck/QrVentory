@@ -15,6 +15,11 @@ const scopeTriggers = document.querySelectorAll('[data-scope-trigger]');
 const tableBody = document.getElementById('items-table-body');
 const tableContainer = document.getElementById('items-table-container');
 const emptyState = document.getElementById('empty-state');
+const paginationBar = document.getElementById('items-pagination');
+const paginationLabel = document.getElementById('pagination-label');
+const paginationPrevButton = document.getElementById('pagination-prev');
+const paginationNextButton = document.getElementById('pagination-next');
+const selectedOffscreenBox = document.getElementById('selected-offscreen');
 const detailModal = document.getElementById('item-detail-modal');
 const detailFields = document.getElementById('detail-fields');
 const detailQr = document.getElementById('detail-qr');
@@ -110,6 +115,8 @@ const LOCATION_USAGE_STORAGE_KEY = 'qrventory-location-usage';
 const LOCATION_BUTTONS_EXPANDED_STORAGE_KEY = 'qrventory-location-buttons-expanded';
 const SUGGESTION_LIMIT = 40;
 const LOCATION_VISIBLE_LIMIT = 6;
+const RENDER_DEBOUNCE_MS = 120;
+const PAGE_SIZE = 80;
 const prefersDarkScheme =
   typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     ? window.matchMedia('(prefers-color-scheme: dark)')
@@ -291,6 +298,7 @@ let locationButtonsExpanded = loadStoredLocationButtonsExpanded();
 let locationStats = [];
 let cachedItems = [];
 let displayedItems = [];
+let filteredItems = [];
 let currentDetailItem = null;
 let editingState = null;
 let lastLocationListPlainText = '';
@@ -303,6 +311,7 @@ let currentSort = {
   key: null,
   direction: 'asc',
 };
+let currentPage = 1;
 const TANGIBLE_TYPE = 'Tangible';
 const FUNGIBLE_TYPE = 'Fungible';
 const SCOPE_GENERAL = 'General';
@@ -334,6 +343,16 @@ const toPositiveInteger = (value, fallback = 1) => {
 };
 const getItemSerial = (item) => (item ? normalizeSerial(item.NoSerie) : '');
 const getItemRowNumber = (item) => normalizeRowNumber(item?._rowNumber);
+let renderScheduleId = null;
+const scheduleRenderItems = () => {
+  if (renderScheduleId) {
+    window.clearTimeout(renderScheduleId);
+  }
+  renderScheduleId = window.setTimeout(() => {
+    renderScheduleId = null;
+    renderItems();
+  }, RENDER_DEBOUNCE_MS);
+};
 
 
 function getSelectionKey(serial, rowNumber) {
@@ -1027,6 +1046,7 @@ function setInventoryScope(scope) {
     scope === TANGIBLE_TYPE || scope === FUNGIBLE_TYPE ? scope : SCOPE_GENERAL;
 
   currentInventoryScope = normalized;
+  currentPage = 1;
 
   scopeTriggers.forEach((trigger) => {
     const triggerScope = trigger.dataset.scopeTrigger;
@@ -1234,6 +1254,103 @@ function updateSortIndicators() {
   });
 }
 
+function updatePaginationUI(totalItems) {
+  if (!paginationBar || !paginationLabel || !paginationPrevButton || !paginationNextButton) {
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  if (currentPage > totalPages) {
+    currentPage = totalPages;
+  }
+  const hasMultiplePages = totalItems > PAGE_SIZE;
+  paginationBar.classList.toggle('is-hidden', totalItems === 0 || !hasMultiplePages);
+
+  if (totalItems === 0) {
+    paginationLabel.textContent = 'Sin resultados';
+    paginationPrevButton.disabled = true;
+    paginationNextButton.disabled = true;
+    return;
+  }
+
+  const start = (currentPage - 1) * PAGE_SIZE + 1;
+  const end = Math.min(currentPage * PAGE_SIZE, totalItems);
+  paginationLabel.textContent = `Pagina ${currentPage} de ${totalPages} (${start}-${end} de ${totalItems})`;
+  paginationPrevButton.disabled = currentPage <= 1;
+  paginationNextButton.disabled = currentPage >= totalPages;
+}
+
+function goToPage(targetPage) {
+  const totalItems = Array.isArray(filteredItems) ? filteredItems.length : 0;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const clamped = Math.min(Math.max(targetPage, 1), totalPages);
+  if (clamped === currentPage) {
+    return;
+  }
+  currentPage = clamped;
+  renderItems();
+}
+
+function renderOffscreenSelection() {
+  if (!selectedOffscreenBox) {
+    return;
+  }
+
+  const selectedEntries = Array.from(selectedItems.values());
+  if (selectedEntries.length === 0) {
+    selectedOffscreenBox.classList.add('is-hidden');
+    selectedOffscreenBox.innerHTML = '';
+    return;
+  }
+
+  const displayedKeys = new Set(
+    displayedItems.map((item) => getSelectionKey(getItemSerial(item), getItemRowNumber(item))),
+  );
+
+  const offscreen = selectedEntries
+    .map((entry) => {
+      const item = findCachedItem(entry.serial, entry.rowNumber);
+      const key = getSelectionKey(entry.serial, entry.rowNumber);
+      const isHidden = key ? !displayedKeys.has(key) : true;
+      return {
+        key,
+        item,
+        isHidden,
+      };
+    })
+    .filter((entry) => entry.isHidden);
+
+  if (offscreen.length === 0) {
+    selectedOffscreenBox.classList.add('is-hidden');
+    selectedOffscreenBox.innerHTML = '';
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  const title = document.createElement('span');
+  title.className = 'selected-offscreen-title';
+  title.textContent = 'Items seleccionados fuera de la vista actual';
+  fragment.appendChild(title);
+
+  const list = document.createElement('div');
+  list.className = 'selected-offscreen-list';
+
+  offscreen.forEach(({ item }) => {
+    const chip = document.createElement('span');
+    chip.className = 'selected-chip';
+    const name = item?.Nombre || 'Sin nombre';
+    const serial = item?.NoSerie || 'Sin serie';
+    chip.innerHTML = `<strong>${serial}</strong> · ${name}`;
+    list.appendChild(chip);
+  });
+
+  fragment.appendChild(list);
+
+  selectedOffscreenBox.innerHTML = '';
+  selectedOffscreenBox.appendChild(fragment);
+  selectedOffscreenBox.classList.remove('is-hidden');
+}
+
 function updateSelectionUI() {
   const totalItems = displayedItems.length;
   const visibleSelectedCount = displayedItems.reduce((accumulator, item) => {
@@ -1273,6 +1390,8 @@ function updateSelectionUI() {
         visibleSelectedCount > 0 && visibleSelectedCount < totalItems;
     }
   }
+
+  renderOffscreenSelection();
 }
 
 mainTabTriggers.forEach((trigger) => {
@@ -1311,7 +1430,8 @@ filterInputs.forEach((input) => {
   input.addEventListener('input', () => {
     filters[key] = normalizeText(input.value).trim();
     updateFilterUIState();
-    renderItems();
+    currentPage = 1;
+    scheduleRenderItems();
   });
 });
 
@@ -1335,7 +1455,8 @@ if (clearFiltersButton) {
 
     updateFilterUIState();
     if (hasChanges) {
-      renderItems();
+      currentPage = 1;
+      scheduleRenderItems();
     }
   });
 }
@@ -1428,9 +1549,22 @@ sortButtons.forEach((button) => {
       };
     }
 
+    currentPage = 1;
     renderItems();
   });
 });
+
+if (paginationPrevButton) {
+  paginationPrevButton.addEventListener('click', () => {
+    goToPage(currentPage - 1);
+  });
+}
+
+if (paginationNextButton) {
+  paginationNextButton.addEventListener('click', () => {
+    goToPage(currentPage + 1);
+  });
+}
 
 function updateUndoUI() {
   if (!undoDeleteButton) {
@@ -1749,6 +1883,23 @@ if (selectAllCheckbox) {
       return;
     }
 
+    // If user clicks when the box shows a minus (indeterminate), clear selection.
+    if (selectAllCheckbox.indeterminate) {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+      selectedItems.clear();
+      const rows = tableBody.querySelectorAll('tr');
+      rows.forEach((row) => {
+        row.classList.remove('is-selected');
+        const checkbox = row.querySelector('input[data-row-select]');
+        if (checkbox) {
+          checkbox.checked = false;
+        }
+      });
+      updateSelectionUI();
+      return;
+    }
+
     if (selectAllCheckbox.checked) {
       displayedItems.forEach((item) => {
         const serial = getItemSerial(item);
@@ -1762,6 +1913,7 @@ if (selectAllCheckbox) {
         }
       });
     } else {
+      selectedItems.clear();
       displayedItems.forEach((item) => {
         const serial = getItemSerial(item);
         const rowNumber = getItemRowNumber(item);
@@ -2562,6 +2714,7 @@ function createItemRow(item) {
 function renderItems(items) {
   if (Array.isArray(items)) {
     cachedItems = items;
+    currentPage = 1;
   }
 
   const normalizedItems = Array.isArray(cachedItems) ? cachedItems : [];
@@ -2583,7 +2736,12 @@ function renderItems(items) {
     }
   });
 
-  displayedItems = applyFiltersAndSort(normalizedItems);
+  filteredItems = applyFiltersAndSort(normalizedItems);
+  const totalItems = filteredItems.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  currentPage = Math.min(currentPage, totalPages);
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  displayedItems = filteredItems.slice(startIndex, startIndex + PAGE_SIZE);
   tableBody.innerHTML = '';
 
   if (normalizedItems.length === 0) {
@@ -2591,20 +2749,25 @@ function renderItems(items) {
     selectedItems.clear();
     displayedItems = [];
     updateSelectionUI();
-
     tableContainer.classList.add('is-hidden');
+    if (paginationBar) {
+      paginationBar.classList.add('is-hidden');
+    }
     if (emptyState) {
       emptyState.textContent = 'Aun no hay items guardados.';
       emptyState.classList.remove('is-hidden');
     }
-
     updateUndoUI();
     updateSortIndicators();
     updateFilterUIState();
+    updatePaginationUI(0);
     return;
   }
 
   tableContainer.classList.remove('is-hidden');
+  if (paginationBar) {
+    paginationBar.classList.remove('is-hidden');
+  }
   if (emptyState) {
     emptyState.classList.add('is-hidden');
   }
@@ -2631,6 +2794,8 @@ function renderItems(items) {
   updateUndoUI();
   updateSortIndicators();
   updateFilterUIState();
+  updatePaginationUI(totalItems);
+  renderOffscreenSelection();
 }
 
 async function refreshItems() {

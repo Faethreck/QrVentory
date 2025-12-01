@@ -387,6 +387,28 @@ const REPORT_QR_ROW_HEIGHT_PT =
   REPORT_QR_GAP_PT +
   6;
 
+let itemCache = null;
+let itemCachePath = null;
+
+const cloneItems = (items = []) => items.map((item) => ({ ...item }));
+
+const setItemCache = (filePath, items = []) => {
+  itemCachePath = filePath;
+  itemCache = cloneItems(items);
+};
+
+const getCachedItems = (filePath) => {
+  if (itemCache && itemCachePath === filePath) {
+    return cloneItems(itemCache);
+  }
+  return null;
+};
+
+const invalidateItemCache = () => {
+  itemCache = null;
+  itemCachePath = null;
+};
+
 const formatDateWithTime = (date = new Date()) => {
   const pad = (value) => String(value).padStart(2, '0');
   const year = date.getFullYear();
@@ -687,13 +709,23 @@ export async function saveItemAndGenerateQR(filePath, rawItem) {
   item['Fecha Ingreso'] = ensureFechaIngresoValue(item['Fecha Ingreso']);
   const { workbook, sheet } = await ensureWorkbook(filePath);
 
+  const cachedItems = getCachedItems(filePath);
   const existingSerials = new Set();
-  for (let rowNumber = DATA_START_ROW; rowNumber <= sheet.rowCount; rowNumber += 1) {
-    const serialValue = extractSerialFromValue(
-      sheet.getCell(rowNumber, SERIAL_COLUMN_INDEX).value,
-    );
-    if (serialValue) {
-      existingSerials.add(serialValue);
+  if (cachedItems) {
+    cachedItems.forEach((entry) => {
+      const serial = normalizeSerial(entry?.NoSerie);
+      if (serial) {
+        existingSerials.add(serial);
+      }
+    });
+  } else {
+    for (let rowNumber = DATA_START_ROW; rowNumber <= sheet.rowCount; rowNumber += 1) {
+      const serialValue = extractSerialFromValue(
+        sheet.getCell(rowNumber, SERIAL_COLUMN_INDEX).value,
+      );
+      if (serialValue) {
+        existingSerials.add(serialValue);
+      }
     }
   }
 
@@ -710,12 +742,24 @@ export async function saveItemAndGenerateQR(filePath, rawItem) {
     startAt: 1,
   });
 
+  const newRowNumber = sheet.rowCount + 1;
   sheet.addRow(itemToRow(item));
   await workbook.xlsx.writeFile(filePath);
+  if (cachedItems) {
+    const updatedCache = [...cachedItems, { ...item, _rowNumber: newRowNumber }];
+    setItemCache(filePath, updatedCache);
+  } else {
+    invalidateItemCache();
+  }
   return generateQrForItem(item);
 }
 
 export async function getAllItems(filePath) {
+  const cached = getCachedItems(filePath);
+  if (cached) {
+    return cached;
+  }
+
   const { sheet } = await ensureWorkbook(filePath);
   if (!sheet) {
     return [];
@@ -730,6 +774,7 @@ export async function getAllItems(filePath) {
     items.push(rowToNormalizedItem(row, rowNumber));
   }
 
+  setItemCache(filePath, items);
   return items;
 }
 
@@ -838,7 +883,7 @@ export async function importItemsFromFile(targetPath, sourcePath) {
   });
 
   await workbook.xlsx.writeFile(targetPath);
-
+  invalidateItemCache();
   return { imported: importedItems.length };
 }
 export async function generateLabelsPdf(sourcePath, rawEntries = [], destinationPath) {
@@ -1391,6 +1436,7 @@ export async function seedDemoItems(filePath) {
   }
 
   await workbook.xlsx.writeFile(filePath);
+  invalidateItemCache();
   return { added };
 }
 
@@ -1521,6 +1567,21 @@ export async function updateItem(filePath, payload = {}) {
 
   const qrDataUrl = await generateQrForItem(item);
 
+  const cachedItems = getCachedItems(filePath);
+  if (cachedItems) {
+    const updatedCache = cachedItems.map((entry) => {
+      const entryRow = normalizeRowNumber(entry?._rowNumber);
+      const entrySerial = normalizeSerial(entry?.NoSerie);
+      if (entryRow === rowIndex || (targetSerial && entrySerial === targetSerial)) {
+        return { ...item };
+      }
+      return entry;
+    });
+    setItemCache(filePath, updatedCache);
+  } else {
+    invalidateItemCache();
+  }
+
   return {
     updated: 1,
     item,
@@ -1609,6 +1670,7 @@ export async function deleteItemsBySerial(filePath, entries = []) {
 
   if (deleted > 0) {
     await workbook.xlsx.writeFile(filePath);
+    invalidateItemCache();
   }
 
   return { deleted, items: removedItems };
@@ -1638,6 +1700,7 @@ export async function restoreItems(filePath, items = []) {
 
   if (rowsToAdd.length > 0) {
     await workbook.xlsx.writeFile(filePath);
+    invalidateItemCache();
   }
 
   return { restored: rowsToAdd.length };
@@ -1746,6 +1809,31 @@ export async function markItemsAsBaja(filePath, entries = [], options = {}) {
 
   if (updated > 0) {
     await workbook.xlsx.writeFile(filePath);
+    const cachedItems = getCachedItems(filePath);
+    if (cachedItems) {
+      const updatedCache = cachedItems.map((entry) => {
+        const entryRow = normalizeRowNumber(entry?._rowNumber);
+        const entrySerial = normalizeSerial(entry?.NoSerie);
+        const shouldUpdate =
+          rowTargets.has(entryRow) ||
+          serialTargets.has(entrySerial) ||
+          normalizedEntries.some(
+            (target) =>
+              (target.rowNumber != null && target.rowNumber === entryRow) ||
+              (target.serial && target.serial === entrySerial),
+          );
+        if (!shouldUpdate) {
+          return entry;
+        }
+        return {
+          ...entry,
+          Estado: targetEstado,
+        };
+      });
+      setItemCache(filePath, updatedCache);
+    } else {
+      invalidateItemCache();
+    }
   }
 
   return { updated, items: updatedItems };
@@ -1767,16 +1855,28 @@ export async function saveItemsBatch(filePath, rawItems = []) {
   }
 
   const existingSerials = new Set();
-  for (let rowNumber = DATA_START_ROW; rowNumber <= sheet.rowCount; rowNumber += 1) {
-    const serialValue = extractSerialFromValue(
-      sheet.getCell(rowNumber, SERIAL_COLUMN_INDEX).value,
-    );
-    if (serialValue) {
-      existingSerials.add(serialValue);
+  const cachedItems = getCachedItems(filePath);
+  if (cachedItems) {
+    cachedItems.forEach((entry) => {
+      const serial = normalizeSerial(entry?.NoSerie);
+      if (serial) {
+        existingSerials.add(serial);
+      }
+    });
+  } else {
+    for (let rowNumber = DATA_START_ROW; rowNumber <= sheet.rowCount; rowNumber += 1) {
+      const serialValue = extractSerialFromValue(
+        sheet.getCell(rowNumber, SERIAL_COLUMN_INDEX).value,
+      );
+      if (serialValue) {
+        existingSerials.add(serialValue);
+      }
     }
   }
 
   const savedItems = [];
+  const startingRow = sheet.rowCount + 1;
+  let rowOffset = 0;
   pendingItems.forEach((entry) => {
     const normalized = normalizeItem(entry);
     normalized['Fecha Ingreso'] = ensureFechaIngresoValue(normalized['Fecha Ingreso']);
@@ -1795,7 +1895,9 @@ export async function saveItemsBatch(filePath, rawItems = []) {
     });
 
     sheet.addRow(itemToRow(normalized));
-    savedItems.push({ ...normalized });
+    const rowNumber = startingRow + rowOffset;
+    rowOffset += 1;
+    savedItems.push({ ...normalized, _rowNumber: rowNumber });
   });
 
   if (savedItems.length === 0) {
@@ -1803,6 +1905,13 @@ export async function saveItemsBatch(filePath, rawItems = []) {
   }
 
   await workbook.xlsx.writeFile(filePath);
+
+  if (cachedItems) {
+    const updatedCache = [...cachedItems, ...savedItems];
+    setItemCache(filePath, updatedCache);
+  } else {
+    invalidateItemCache();
+  }
 
   const qrData = [];
   for (const item of savedItems) {
