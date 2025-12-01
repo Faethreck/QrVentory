@@ -1,4 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="colorBackground">#E7F2EF</color>
+    <color name="colorMuted">#4A5F68</color>
+    <color name="colorOnBackground">#1F2629</color>
+    <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="colorOnSecondary">#1F2629</color>
+    <color name="colorOnSurface">#1F2629</color>
+    <color name="colorPrimary">#708993</color>
+    <color name="colorPrimarySoft">#A1C2BD</color>
+    <color name="colorPrimaryVariant">#4A5F68</color>
+    <color name="colorSecondary">#A1C2BD</color>
+    <color name="colorSecondaryVariant">#708993</color>
+    <color name="colorSurface">#FFFFFF</color>
     <color name="ic_launcher_background">#2D3A4A</color>
+    <string name="app_name">QrVentory</string>
+    <string name="button_copy">Copiar</string>
+    <string name="button_share">Compartir</string>
+    <string name="clear_button">Limpiar</string>
+    <string name="confirm_scan">Registrar</string>
+    <string name="copy_confirm">Copiado</string>
+    <string name="delete_item">Eliminar este registro</string>
+    <string name="extra_empty_value">Sin valor</string>
+    <string name="extra_none_label">Sin datos extra</string>
+    <string name="extra_none_value">Solo contiene los campos basicos</string>
+    <string name="hide_raw">Ocultar contenido completo</string>
+    <string name="history_cleared">Historial limpio. Listo para escanear.</string>
+    <string name="item_category_placeholder">Sin categoria</string>
+    <string name="item_fallback">Item</string>
+    <string name="item_location_placeholder">Sin ubicacion</string>
+    <string name="item_meta_format">Categoria: %1$s - Ubicacion: %2$s</string>
+    <string name="item_meta_placeholder">Categoria: Sin categoria - Ubicacion: Sin ubicacion</string>
+    <string name="item_name_placeholder">Sin nombre</string>
+    <string name="item_serial_placeholder">Sin serie</string>
+    <string name="keep_scanning">Seguir escaneando</string>
+    <string name="label_category">Categoria</string>
+    <string name="label_date_added">Fecha agregada</string>
+    <string name="label_extras">Datos extra</string>
+    <string name="label_location">Ubicacion</string>
+    <string name="label_provider">Proveedor</string>
+    <string name="label_raw">Contenido completo</string>
+    <string name="label_serial">Serie</string>
+    <string name="scan_button">Escanear QR</string>
+    <string name="scan_cancelled">Escaneo cancelado</string>
+    <string name="scan_info_meta_placeholder">Categoria: Sin categoria - Ubicacion: Sin ubicacion</string>
+    <string name="scan_info_serial_label">Serie: %1$s</string>
+    <string name="scan_info_serial_placeholder">Serie: Sin serie</string>
+    <string name="scan_info_waiting">Buscando codigo...</string>
+    <string name="scan_prompt">Escanea un codigo QR de QrVentory</string>
+    <string name="share_title">Compartir contenido del QR</string>
+    <string name="show_details_button">Ver detalles</string>
+    <string name="show_raw">Mostrar contenido completo</string>
+    <string name="status_hint">Apunta la camara a un codigo QR para ver el inventario.</string>
+    <string name="status_last">Ultimo: %1$s</string>
+    <string name="title_main">QrVentory - Escanear QR</string>
+    <style name="Theme.QrVentory" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryVariant">@color/colorPrimaryVariant</item>
+        <item name="colorSecondary">@color/colorSecondary</item>
+        <item name="colorSecondaryVariant">@color/colorSecondaryVariant</item>
+        <item name="colorAccent">@color/colorPrimarySoft</item>
+        <item name="colorSurface">@color/colorSurface</item>
+        <item name="colorOnSurface">@color/colorOnSurface</item>
+        <item name="android:colorBackground">@color/colorBackground</item>
+        <item name="colorOnBackground">@color/colorOnBackground</item>
+        <item name="android:windowBackground">@color/colorBackground</item>
+        <item name="android:navigationBarColor">@color/colorPrimary</item>
+        <item name="android:statusBarColor">@color/colorPrimaryVariant</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="materialButtonStyle">@style/Widget.QrVentory.Button</item>
+        <item name="materialCardViewStyle">@style/Widget.QrVentory.Card</item>
+    </style>
+    <style name="Widget.QrVentory.Button" parent="Widget.MaterialComponents.Button">
+        <item name="cornerRadius">12dp</item>
+    </style>
+    <style name="Widget.QrVentory.Card" parent="Widget.MaterialComponents.CardView">
+        <item name="cardCornerRadius">12dp</item>
+        <item name="cardElevation">2dp</item>
+    </style>
 </resources>

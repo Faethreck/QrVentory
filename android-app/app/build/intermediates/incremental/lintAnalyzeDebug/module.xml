@@ -1,0 +1,19 @@
+<lint-module
+    format="1"
+    dir="C:\Users\patri\OneDrive\Desktop\QrVentory\android-app\app"
+    name=":app"
+    type="APP"
+    maven="QrVentoryMobile:app:unspecified"
+    agpVersion="8.13.1"
+    buildFolder="build"
+    bootClassPath="C:\Users\patri\AppData\Local\Android\Sdk\platforms\android-34\android.jar;C:\Users\patri\AppData\Local\Android\Sdk\build-tools\35.0.0\core-lambda-stubs.jar"
+    javaSourceLevel="17"
+    compileTarget="android-34"
+    neverShrinking="true">
+  <lintOptions
+      abortOnError="true"
+      absolutePaths="true"
+      checkReleaseBuilds="true"
+      explainIssues="true"/>
+  <variant name="debug"/>
+</lint-module>

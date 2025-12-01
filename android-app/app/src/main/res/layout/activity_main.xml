@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/colorBackground"
     android:padding="16dp"
     tools:context=".MainActivity">
 
@@ -11,7 +12,7 @@
         android:id="@+id/title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="QrVentory - Escanear QR"
+        android:text="@string/title_main"
         android:textAppearance="?attr/textAppearanceHeadline6"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
@@ -22,18 +23,18 @@
         android:id="@+id/statusText"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Apunta la camara a un codigo QR para ver el inventario."
+        android:text="@string/status_hint"
         android:textAppearance="?attr/textAppearanceBody1"
         android:layout_marginTop="8dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/title"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/scanButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Escanear QR"
+        android:text="@string/scan_button"
         android:layout_marginTop="16dp"
         app:icon="@android:drawable/ic_menu_camera"
         app:iconPadding="8dp"
@@ -42,14 +43,25 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/statusText" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/clearButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Limpiar"
+        android:text="@string/clear_button"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
         android:layout_marginTop="8dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/scanButton" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/showLastButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/show_details_button"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:layout_marginStart="12dp"
+        app:layout_constraintStart_toEndOf="@id/clearButton"
+        app:layout_constraintBaseline_toBaselineOf="@id/clearButton" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/historyList"

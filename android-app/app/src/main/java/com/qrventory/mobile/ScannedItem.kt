@@ -5,5 +5,9 @@ data class ScannedItem(
     val name: String = "",
     val category: String = "",
     val location: String = "",
-    val raw: String = ""
+    val provider: String = "",
+    val dateAdded: String = "",
+    val raw: String = "",
+    val extras: Map<String, String> = emptyMap(),
+    val scannedAt: Long = System.currentTimeMillis()
 )

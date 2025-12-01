@@ -1,31 +1,36 @@
 package com.qrventory.mobile
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.zxing.integration.android.IntentIntegrator
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.qrventory.mobile.databinding.ActivityMainBinding
-import org.json.JSONObject
+import com.qrventory.mobile.databinding.DialogItemDetailsBinding
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private val adapter = ScannedItemAdapter()
+    private val adapter = ScannedItemAdapter(
+        onItemClick = { showItemDetails(it) },
+        onDeleteClick = { deleteItem(it) }
+    )
     private val scannedHistory = mutableListOf<ScannedItem>()
+    private var lastScanned: ScannedItem? = null
 
-    private val scanLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            val intentResult = IntentIntegrator.parseActivityResult(result.resultCode, result.data)
-            if (intentResult != null) {
-                if (intentResult.contents != null) {
-                    handleScan(intentResult.contents)
-                } else {
-                    showToast("Escaneo cancelado")
-                }
-            }
+    private val scanLauncher = registerForActivityResult(ScanContract()) { result ->
+        if (result.contents.isNullOrBlank()) {
+            Toast.makeText(this, R.string.scan_cancelled, Toast.LENGTH_SHORT).show()
+        } else {
+            handleScan(result.contents)
         }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,47 +42,103 @@ class MainActivity : ComponentActivity() {
 
         binding.scanButton.setOnClickListener { startScan() }
         binding.clearButton.setOnClickListener { clearHistory() }
+        binding.showLastButton.setOnClickListener { lastScanned?.let { showItemDetails(it) } }
+        binding.showLastButton.isEnabled = false
     }
 
     private fun startScan() {
-        val integrator = IntentIntegrator(this)
-        integrator.setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
-        integrator.setBeepEnabled(true)
-        integrator.setOrientationLocked(false)
-        integrator.setPrompt("Escanea un codigo QR de QrVentory")
-        scanLauncher.launch(integrator.createScanIntent())
+        val options = ScanOptions().apply {
+            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            setBeepEnabled(true)
+            setOrientationLocked(false)
+            setPrompt(getString(R.string.scan_prompt))
+            captureActivity = InlineScanActivity::class.java
+        }
+        scanLauncher.launch(options)
     }
 
     private fun clearHistory() {
         scannedHistory.clear()
         adapter.submitItems(scannedHistory)
-        binding.statusText.text = "Historial limpio. Listo para escanear."
+        binding.statusText.text = getString(R.string.history_cleared)
+        lastScanned = null
+        binding.showLastButton.isEnabled = false
+    }
+
+    private fun deleteItem(item: ScannedItem) {
+        scannedHistory.remove(item)
+        adapter.submitItems(scannedHistory)
+        if (lastScanned == item) {
+            lastScanned = scannedHistory.firstOrNull()
+            binding.showLastButton.isEnabled = lastScanned != null
+        }
     }
 
     private fun handleScan(contents: String) {
-        val parsed = parseItem(contents)
+        val parsed = ItemParser.parse(contents)
         scannedHistory.add(0, parsed)
         adapter.submitItems(scannedHistory)
-        binding.statusText.text = "Ultimo: ${parsed.name.ifBlank { parsed.serial.ifBlank { "Item" } }}"
+        val displayName = parsed.name.ifBlank { parsed.serial.ifBlank { getString(R.string.item_fallback) } }
+        binding.statusText.text = getString(R.string.status_last, displayName)
+        lastScanned = parsed
+        binding.showLastButton.isEnabled = true
     }
 
-    private fun parseItem(raw: String): ScannedItem {
-        try {
-            val json = JSONObject(raw)
-            return ScannedItem(
-                serial = json.optString("NoSerie"),
-                name = json.optString("Nombre"),
-                category = json.optString("Categoria"),
-                location = json.optString("Ubicacion"),
-                raw = raw
-            )
-        } catch (_: Exception) {
-            // Not JSON? return raw.
+    private fun showItemDetails(item: ScannedItem) {
+        val dialog = BottomSheetDialog(this)
+        val detailBinding = DialogItemDetailsBinding.inflate(layoutInflater)
+
+        val serial = item.serial.ifBlank { getString(R.string.item_serial_placeholder) }
+        val category = item.category.ifBlank { getString(R.string.item_category_placeholder) }
+        val location = item.location.ifBlank { getString(R.string.item_location_placeholder) }
+        val provider = item.provider.ifBlank { getString(R.string.extra_empty_value) }
+        val dateAdded = item.dateAdded.ifBlank { getString(R.string.extra_empty_value) }
+
+        detailBinding.nameValue.text = item.name.ifBlank { getString(R.string.item_name_placeholder) }
+        detailBinding.serialValue.text = serial
+        detailBinding.categoryValue.text = category
+        detailBinding.locationValue.text = location
+        detailBinding.providerValue.text = provider
+        detailBinding.dateAddedValue.text = dateAdded
+        detailBinding.rawValue.text = item.raw
+        detailBinding.timestampValue.text = android.text.format.DateFormat.format("yyyy-MM-dd HH:mm", item.scannedAt)
+        detailBinding.rawSection.isVisible = false
+        detailBinding.toggleRawButton.text = getString(R.string.show_raw)
+
+        detailBinding.extrasContainer.removeAllViews()
+        if (item.extras.isEmpty()) {
+            val empty = layoutInflater.inflate(R.layout.view_extra_row, detailBinding.extrasContainer, false)
+            empty.findViewById<android.widget.TextView>(R.id.extraKey).text = getString(R.string.extra_none_label)
+            empty.findViewById<android.widget.TextView>(R.id.extraValue).text = getString(R.string.extra_none_value)
+            detailBinding.extrasContainer.addView(empty)
+        } else {
+            item.extras.forEach { (key, value) ->
+                val row = layoutInflater.inflate(R.layout.view_extra_row, detailBinding.extrasContainer, false)
+                row.findViewById<android.widget.TextView>(R.id.extraKey).text = key
+                row.findViewById<android.widget.TextView>(R.id.extraValue).text = value.ifBlank { getString(R.string.extra_empty_value) }
+                detailBinding.extrasContainer.addView(row)
+            }
         }
-        return ScannedItem(raw = raw, serial = raw)
-    }
 
-    private fun showToast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        detailBinding.copyButton.setOnClickListener {
+            val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("QR data", item.raw))
+            Toast.makeText(this, R.string.copy_confirm, Toast.LENGTH_SHORT).show()
+        }
+        detailBinding.shareButton.setOnClickListener {
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, item.raw)
+            }
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.share_title)))
+        }
+
+        detailBinding.toggleRawButton.setOnClickListener {
+            detailBinding.rawSection.isVisible = !detailBinding.rawSection.isVisible
+            detailBinding.toggleRawButton.text = getString(if (detailBinding.rawSection.isVisible) R.string.hide_raw else R.string.show_raw)
+        }
+
+        dialog.setContentView(detailBinding.root)
+        dialog.show()
     }
 }

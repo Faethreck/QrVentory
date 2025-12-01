@@ -1,0 +1,5 @@
+com.qrventory.mobile.test.app-androidTest-0 C:\Users\patri\OneDrive\Desktop\QrVentory\android-app\app\build\generated\res\resValues\androidTest\debug
+com.qrventory.mobile.test.app-updated_navigation_xml-1 C:\Users\patri\OneDrive\Desktop\QrVentory\android-app\app\build\generated\updated_navigation_xml\debugAndroidTest
+com.qrventory.mobile.test.app-mergeDebugAndroidTestResources-2 C:\Users\patri\OneDrive\Desktop\QrVentory\android-app\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\merged.dir
+com.qrventory.mobile.test.app-mergeDebugAndroidTestResources-3 C:\Users\patri\OneDrive\Desktop\QrVentory\android-app\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\stripped.dir
+com.qrventory.mobile.test.app-debugAndroidTest-4 C:\Users\patri\OneDrive\Desktop\QrVentory\android-app\app\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources

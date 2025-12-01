@@ -6,6 +6,9 @@
     android:layout_marginBottom="8dp"
     app:cardElevation="2dp"
     app:cardCornerRadius="12dp"
+    app:cardBackgroundColor="@color/colorSurface"
+    app:strokeColor="@color/colorPrimarySoft"
+    app:strokeWidth="1dp"
     android:foreground="?attr/selectableItemBackground">
 
     <LinearLayout
@@ -14,19 +17,37 @@
         android:orientation="vertical"
         android:padding="12dp">
 
-        <TextView
-            android:id="@+id/itemTitle"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Sin nombre"
-            android:textStyle="bold"
-            android:textAppearance="?attr/textAppearanceSubtitle1" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/itemTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/item_name_placeholder"
+                android:textStyle="bold"
+                android:textAppearance="?attr/textAppearanceSubtitle1" />
+
+            <ImageButton
+                android:id="@+id/deleteButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/delete_item"
+                app:tint="@color/colorPrimaryVariant"
+                android:padding="8dp"
+                android:src="@android:drawable/ic_menu_delete" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/itemSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Serial"
+            android:text="@string/item_serial_placeholder"
             android:textAppearance="?attr/textAppearanceBody2"
             android:layout_marginTop="4dp" />
 
@@ -34,7 +55,7 @@
             android:id="@+id/itemMeta"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Categoria • Ubicacion"
+            android:text="@string/item_meta_placeholder"
             android:textAppearance="?attr/textAppearanceCaption"
             android:layout_marginTop="4dp" />
     </LinearLayout>
